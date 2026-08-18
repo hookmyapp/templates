@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
           past.slice(0, -1),
           msg.text,
           settings.openrouter_api_key,
+          settings.temperature,
         );
         await sendText(
           {

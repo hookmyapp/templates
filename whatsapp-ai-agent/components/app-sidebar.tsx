@@ -1,20 +1,26 @@
 'use client';
 
-import { MessageSquare, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, MessageSquare, Play, Settings2, Wrench } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
-import { Badge } from '@/components/ui/badge';
 
 export type Contact = { contact_wa_id: string; last_at: string };
+export type View = 'chat' | 'instructions' | 'playground' | 'settings';
 
 const short = (iso: string) => {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -27,20 +33,22 @@ const short = (iso: string) => {
 export function AppSidebar({
   contacts,
   active,
-  onSelect,
-  onSettings,
   view,
   connected,
   mode,
+  onSelect,
+  onView,
 }: {
   contacts: Contact[];
   active: string | null;
-  onSelect: (id: string) => void;
-  onSettings: () => void;
-  view: 'chat' | 'settings';
+  view: View;
   connected: boolean;
   mode: 'sandbox' | 'live';
+  onSelect: (id: string) => void;
+  onView: (v: View) => void;
 }) {
+  const [buildOpen, setBuildOpen] = useState(true);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="gap-2 px-3 py-4">
@@ -58,6 +66,45 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Build" onClick={() => setBuildOpen((o) => !o)}>
+                  <Wrench className="size-4" />
+                  <span>Build</span>
+                  <ChevronDown
+                    className={`ml-auto transition-transform ${buildOpen ? '' : '-rotate-90'}`}
+                  />
+                </SidebarMenuButton>
+                {buildOpen ? (
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={view === 'instructions'}
+                        onClick={() => onView('instructions')}
+                      >
+                        <span>Instructions</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                ) : null}
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={view === 'playground'}
+                  onClick={() => onView('playground')}
+                  tooltip="Playground"
+                >
+                  <Play className="size-4" />
+                  <span>Playground</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel>Conversations</SidebarGroupLabel>
           <SidebarMenu>
@@ -91,7 +138,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={view === 'settings'}
-              onClick={onSettings}
+              onClick={() => onView('settings')}
               tooltip="Settings"
             >
               <Settings2 className="size-4" />

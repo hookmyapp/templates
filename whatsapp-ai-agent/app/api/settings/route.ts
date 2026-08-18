@@ -16,6 +16,7 @@ export async function GET() {
   return Response.json({
     systemPrompt: s.system_prompt,
     model: s.model,
+    temperature: s.temperature,
     mode: s.mode,
     connected: Boolean(s.hmac_secret),
     channelId: s.channel_id,
@@ -34,6 +35,7 @@ export async function PUT(req: Request) {
   const body = (await req.json()) as {
     systemPrompt?: string;
     model?: string;
+    temperature?: number;
     hookmyappApiKey?: string;
     hookmyappWorkspaceId?: string;
     openrouterApiKey?: string;
@@ -41,6 +43,7 @@ export async function PUT(req: Request) {
   await saveSettings({
     system_prompt: body.systemPrompt,
     model: body.model,
+    temperature: body.temperature,
     // Blank means leave the stored value alone.
     hookmyapp_api_key: body.hookmyappApiKey || undefined,
     hookmyapp_workspace_id: body.hookmyappWorkspaceId || undefined,

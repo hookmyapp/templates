@@ -1,6 +1,7 @@
 export type Status = {
   systemPrompt: string;
   model: string;
+  temperature: number;
   mode: 'sandbox' | 'live';
   connected: boolean;
   channelId: string | null;

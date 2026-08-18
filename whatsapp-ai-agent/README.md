@@ -34,8 +34,8 @@ They can also be set as `HOOKMYAPP_API_KEY`, `HOOKMYAPP_WORKSPACE_ID` and `OPENR
 2. Paste the three credentials and save.
 3. In **Connection**, pick **Sandbox number** to try it without a Meta account. Send the code shown to the sandbox number from WhatsApp, then press **Receive messages here**.
 4. Or pick **Real number** to use a number you already connected, or to connect a new one through the Meta signup flow.
-5. In **Prompt**, write what the agent should be. It applies to the next message. There is no redeploy.
-6. Message the number. The reply and the conversation appear in **Conversations**.
+6. In **Instructions**, write what the agent should be. It applies to the next message. There is no redeploy.
+6. Message the number. The reply and the conversation appear under **Conversations**.
 
 ## Running it locally
 
@@ -65,6 +65,7 @@ The 200 goes out before the model is called, because the model takes seconds and
 | `lib/whatsapp.ts` | Signature verification and payload parsing |
 | `lib/db.ts` | Schema, settings, message history |
 | `app/api/webhook/whatsapp/route.ts` | The receive and answer loop |
+| `app/api/playground/route.ts` | The Playground, which answers without touching WhatsApp |
 
 ## Making it yours
 

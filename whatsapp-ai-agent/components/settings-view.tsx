@@ -6,13 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { ConnectCard } from '@/components/connect-card';
 import type { Status } from '@/components/status';
 
 export function SettingsView({ status, onChange }: { status: Status; onChange: () => void }) {
-  const [prompt, setPrompt] = useState(status.systemPrompt);
-  const [model, setModel] = useState(status.model);
   const [keys, setKeys] = useState({ hookmyapp: '', workspace: '', openrouter: '' });
   const [busy, setBusy] = useState(false);
 
@@ -85,34 +82,6 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
 
       <ConnectCard status={status} onChange={onChange} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Prompt</CardTitle>
-          <CardDescription>What the agent is and how it should answer.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="prompt">System prompt</Label>
-            <Textarea
-              id="prompt"
-              rows={8}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="model">Model</Label>
-            <Input id="model" value={model} onChange={(e) => setModel(e.target.value)} />
-            <p className="text-muted-foreground text-xs">Any model id from openrouter.ai/models.</p>
-          </div>
-          <Button
-            disabled={busy}
-            onClick={() => save({ systemPrompt: prompt, model }, 'Saved. The next message uses it.')}
-          >
-            Save prompt
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -9,6 +9,7 @@ export async function reply(
   past: Message[],
   incoming: string,
   apiKey?: string | null,
+  temperature = 0.7,
 ): Promise<string> {
   const key = apiKey ?? process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error('Add your OpenRouter key in Settings');
@@ -25,7 +26,7 @@ export async function reply(
   const res = await fetch(URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages }),
+    body: JSON.stringify({ model, messages, temperature }),
   });
   if (!res.ok) throw new Error(`OpenRouter failed (${res.status}): ${await res.text()}`);
 

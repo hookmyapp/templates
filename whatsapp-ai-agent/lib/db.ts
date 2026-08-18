@@ -26,10 +26,11 @@ export type Settings = {
   hookmyapp_api_key: string | null;
   hookmyapp_workspace_id: string | null;
   openrouter_api_key: string | null;
+  temperature: number;
 };
 
 export type Message = {
-  id: number;
+  id: string;
   contact_wa_id: string;
   direction: 'in' | 'out';
   body: string;
@@ -74,6 +75,7 @@ export function init(): Promise<void> {
     await sql`alter table settings add column if not exists hookmyapp_api_key text`;
     await sql`alter table settings add column if not exists hookmyapp_workspace_id text`;
     await sql`alter table settings add column if not exists openrouter_api_key text`;
+    await sql`alter table settings add column if not exists temperature real not null default 0.7`;
     await sql`create index if not exists messages_contact_idx on messages (contact_wa_id, created_at desc)`;
     await sql`
       insert into settings (id, system_prompt, model)
@@ -109,6 +111,7 @@ export async function saveSettings(patch: Partial<Settings>): Promise<Settings> 
       hookmyapp_api_key = ${next.hookmyapp_api_key},
       hookmyapp_workspace_id = ${next.hookmyapp_workspace_id},
       openrouter_api_key = ${next.openrouter_api_key},
+      temperature = ${next.temperature},
       updated_at = now()
     where id = 1
     returning *`) as Settings[];

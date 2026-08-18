@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AppSidebar, type Contact } from '@/components/app-sidebar';
+import { AppSidebar, type Contact, type View } from '@/components/app-sidebar';
 import { ChatView } from '@/components/chat-view';
+import { InstructionsView } from '@/components/instructions-view';
+import { PlaygroundView } from '@/components/playground-view';
 import { SettingsView } from '@/components/settings-view';
 import type { Status } from '@/components/status';
 import { Badge } from '@/components/ui/badge';
@@ -10,11 +12,17 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const TITLES: Record<Exclude<View, 'chat'>, string> = {
+  instructions: 'Instructions',
+  playground: 'Playground',
+  settings: 'Settings',
+};
+
 export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [active, setActive] = useState<string | null>(null);
-  const [view, setView] = useState<'chat' | 'settings'>('chat');
+  const [view, setView] = useState<View>('instructions');
 
   const loadStatus = useCallback(() => {
     fetch('/api/settings')
@@ -51,16 +59,16 @@ export default function Home() {
           setActive(id);
           setView('chat');
         }}
-        onSettings={() => setView('settings')}
+        onView={setView}
       />
       <SidebarInset className="flex h-svh flex-col">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-1 h-4" />
           <h1 className="text-sm font-medium">
-            {view === 'settings' ? 'Settings' : (active ?? 'Conversations')}
+            {view === 'chat' ? (active ?? 'Conversations') : TITLES[view]}
           </h1>
-          {view === 'chat' && status ? (
+          {status ? (
             <Badge variant={status.connected ? 'default' : 'outline'} className="ml-auto">
               {status.connected
                 ? status.mode === 'sandbox'
@@ -79,6 +87,14 @@ export default function Home() {
             </div>
           ) : view === 'settings' ? (
             <SettingsView status={status} onChange={loadStatus} />
+          ) : view === 'instructions' ? (
+            <InstructionsView
+              key={status.systemPrompt + status.model + status.temperature}
+              status={status}
+              onChange={loadStatus}
+            />
+          ) : view === 'playground' ? (
+            <PlaygroundView />
           ) : (
             <ChatView contact={active} />
           )}
