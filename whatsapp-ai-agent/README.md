@@ -45,7 +45,7 @@ cp .env.example .env.local   # DATABASE_URL is the only one you need
 npm run dev
 ```
 
-Webhooks need a public URL, so expose port 3000 through a tunnel and set `PUBLIC_URL` to that address before pressing the connect button.
+`DATABASE_URL` can point at a Neon database or at a Postgres on your machine. Webhooks need a public URL, so to receive messages locally, expose port 3000 through a tunnel and set `PUBLIC_URL` to that address. Connecting a number works without a tunnel.
 
 ## How it works
 
