@@ -36,16 +36,6 @@ export function selfUrl(): string {
 
 export const webhookUrl = () => `${selfUrl()}/api/webhook/whatsapp`;
 
-/** True while the app runs on a host nothing outside this machine can reach. */
-export function isLocalUrl(): boolean {
-  try {
-    const host = new URL(selfUrl()).hostname;
-    return host === 'localhost' || !host.includes('.') || host.endsWith('.localhost');
-  } catch {
-    return true;
-  }
-}
-
 export type Channel = {
   publicId: string;
   channelType: string;
@@ -94,16 +84,11 @@ export async function setWebhook(channelId: string, url: string, verifyToken: st
   });
 }
 
-export async function createOnboardingLink(label: string, notifyUrl?: string) {
-  return call<{ url: string; publicId: string }>('/org/onboarding-links', {
+/** Starts Meta sign-in for a number that lands in your own workspace. */
+export async function startConnect(): Promise<{ redirectUrl: string }> {
+  return call<{ redirectUrl: string }>('/meta/oauth/start', {
     method: 'POST',
-    body: JSON.stringify({
-      label,
-      channelType: 'whatsapp',
-      // A local host is rejected, so the link is created without the callback
-      // and the connected number is picked from the list instead.
-      ...(notifyUrl ? { connectedNotificationUrl: notifyUrl } : {}),
-    }),
+    body: JSON.stringify({ redirectPath: '/cli/callback' }),
   });
 }
 

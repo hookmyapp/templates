@@ -32,6 +32,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   const [sandbox, setSandbox] = useState<Sandbox | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     if (tab === 'live') {
@@ -67,6 +68,41 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  /**
+   * Opens Meta sign-in, then watches the channel list until a number that was
+   * not there before shows up, and points the webhook at this deployment.
+   */
+  const connect = async () => {
+    setConnecting(true);
+    try {
+      const before = new Set(channels.map((c) => c.publicId));
+      const { redirectUrl } = (await post('/api/connect/start')) as { redirectUrl: string };
+      window.open(redirectUrl, '_blank');
+      toast.info('Finish the sign-in in the new tab. This page picks the number up.');
+
+      const deadline = Date.now() + 15 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const list = (await fetch('/api/channels').then((r) => r.json())) as {
+          channels?: Channel[];
+        };
+        setChannels(list.channels ?? []);
+        const fresh = (list.channels ?? []).find((c) => !before.has(c.publicId));
+        if (fresh) {
+          await post('/api/channels/select', { channelId: fresh.publicId });
+          toast.success('Number connected and receiving here');
+          onChange();
+          return;
+        }
+      }
+      toast.error('Gave up waiting. Pick the number from the list once it appears.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -166,23 +202,8 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
             ) : (
               <p className="text-muted-foreground text-sm">No WhatsApp numbers connected yet.</p>
             )}
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const link = (await post('/api/connect-link')) as {
-                    url: string;
-                    autoConnect: boolean;
-                  };
-                  window.open(link.url, '_blank');
-                  if (!link.autoConnect) {
-                    toast.info('Running locally, so pick the number here once it connects.');
-                  }
-                }, 'Connect link opened')
-              }
-            >
-              Connect a new number
+            <Button variant="outline" disabled={busy || connecting} onClick={connect}>
+              {connecting ? 'Waiting for the sign-in to finish' : 'Connect a new number'}
             </Button>
           </TabsContent>
         </Tabs>
