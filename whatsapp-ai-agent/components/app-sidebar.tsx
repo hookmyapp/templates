@@ -133,9 +133,9 @@ export function AppSidebar({
                     isActive={view === 'chat' && active === c.contact_wa_id}
                     onClick={() => onSelect(c.contact_wa_id)}
                     tooltip={c.contact_wa_id}
-                    className="h-auto py-2"
+                    className="h-auto items-center py-2"
                   >
-                    <MessageSquare className="size-4 shrink-0 self-start" />
+                    <MessageSquare className="size-4 shrink-0" />
                     <span className="grid min-w-0 flex-1 gap-0.5">
                       <span className="flex items-center gap-2">
                         <span className="truncate font-mono text-xs">{c.contact_wa_id}</span>
