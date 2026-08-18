@@ -10,7 +10,8 @@ import { ConnectCard } from '@/components/connect-card';
 import type { Status } from '@/components/status';
 
 export function SettingsView({ status, onChange }: { status: Status; onChange: () => void }) {
-  const [keys, setKeys] = useState({ hookmyapp: '', workspace: '', openrouter: '' });
+  const [openrouter, setOpenrouter] = useState('');
+  const [hookmyapp, setHookmyapp] = useState({ key: '', workspace: '' });
   const [busy, setBusy] = useState(false);
 
   const save = async (body: Record<string, string>, done: string) => {
@@ -35,44 +36,65 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
       <Card>
         <CardHeader>
-          <CardTitle>Credentials</CardTitle>
+          <CardTitle>OpenRouter</CardTitle>
           <CardDescription>
-            Stored in your database. Leave a field blank to keep the current value.
+            The key the agent answers with. Get one at openrouter.ai/keys.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Field
-            id="hookmyapp"
-            label="HookMyApp API key"
+            id="openrouter"
+            label="API key"
+            placeholder={status.keys.openrouter ?? 'sk-or-...'}
+            value={openrouter}
+            onChange={setOpenrouter}
+          />
+          <Button
+            disabled={busy || !openrouter.trim()}
+            onClick={() =>
+              save({ openrouterApiKey: openrouter }, 'OpenRouter key saved').then(() =>
+                setOpenrouter(''),
+              )
+            }
+          >
+            Save key
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>HookMyApp</CardTitle>
+          <CardDescription>
+            Used to list your numbers and to point the webhook at this deployment. Leave a field
+            blank to keep the current value.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Field
+            id="hookmyapp-key"
+            label="API key"
             placeholder={status.keys.hookmyapp ?? 'hmok_...'}
-            value={keys.hookmyapp}
-            onChange={(v) => setKeys({ ...keys, hookmyapp: v })}
+            value={hookmyapp.key}
+            onChange={(v) => setHookmyapp({ ...hookmyapp, key: v })}
           />
           <Field
             id="workspace"
             label="Workspace id"
             placeholder={status.keys.workspace ?? 'ws_...'}
-            value={keys.workspace}
-            onChange={(v) => setKeys({ ...keys, workspace: v })}
-          />
-          <Field
-            id="openrouter"
-            label="OpenRouter key"
-            placeholder={status.keys.openrouter ?? 'sk-or-...'}
-            value={keys.openrouter}
-            onChange={(v) => setKeys({ ...keys, openrouter: v })}
+            value={hookmyapp.workspace}
+            onChange={(v) => setHookmyapp({ ...hookmyapp, workspace: v })}
           />
           <Button
-            disabled={busy}
+            disabled={busy || (!hookmyapp.key.trim() && !hookmyapp.workspace.trim())}
             onClick={() =>
               save(
                 {
-                  hookmyappApiKey: keys.hookmyapp,
-                  hookmyappWorkspaceId: keys.workspace,
-                  openrouterApiKey: keys.openrouter,
+                  hookmyappApiKey: hookmyapp.key,
+                  hookmyappWorkspaceId: hookmyapp.workspace,
                 },
-                'Credentials saved',
-              ).then(() => setKeys({ hookmyapp: '', workspace: '', openrouter: '' }))
+                'HookMyApp credentials saved',
+              ).then(() => setHookmyapp({ key: '', workspace: '' }))
             }
           >
             Save credentials
@@ -81,7 +103,6 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
       </Card>
 
       <ConnectCard status={status} onChange={onChange} />
-
     </div>
   );
 }
