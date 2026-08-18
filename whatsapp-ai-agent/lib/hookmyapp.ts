@@ -36,6 +36,18 @@ export function selfUrl(): string {
 
 export const webhookUrl = () => `${selfUrl()}/api/webhook/whatsapp`;
 
+/** The webhook URL, or null when the app has no public address yet. */
+export function webhookUrlOrNull(): string | null {
+  try {
+    return webhookUrl();
+  } catch {
+    return null;
+  }
+}
+
+export const NO_PUBLIC_URL =
+  'This app has no public address, so HookMyApp cannot deliver messages to it. Deploy it, or expose it with a tunnel and set PUBLIC_URL to that address.';
+
 export type Channel = {
   publicId: string;
   channelType: string;

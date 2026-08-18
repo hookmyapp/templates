@@ -1,10 +1,14 @@
 import { channelCredentials, setWebhook, webhookUrl } from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
+import { NO_PUBLIC_URL, webhookUrlOrNull } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const { channelId } = (await req.json()) as { channelId: string };
+  if (!webhookUrlOrNull()) {
+    return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
+  }
   try {
     const creds = await channelCredentials(channelId);
     await setWebhook(channelId, webhookUrl(), creds.verifyToken);

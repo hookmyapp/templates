@@ -1,9 +1,13 @@
 import { activeSandboxSession, sandboxCredentials, setSandboxWebhook, webhookUrl } from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
+import { NO_PUBLIC_URL, webhookUrlOrNull } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
+  if (!webhookUrlOrNull()) {
+    return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
+  }
   try {
     const session = await activeSandboxSession();
     if (!session) {

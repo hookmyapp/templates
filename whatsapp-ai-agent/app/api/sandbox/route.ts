@@ -1,4 +1,4 @@
-import { activeSandboxSession, bindCode, webhookUrl } from '@/lib/hookmyapp';
+import { activeSandboxSession, bindCode, webhookUrlOrNull } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,8 @@ export async function GET() {
         phone: session.whatsappPhone,
         webhookUrl: session.webhookUrl ?? null,
       },
-      pointsHere: session.webhookUrl === webhookUrl(),
+      // Listing the session must not depend on this app having a public URL.
+      pointsHere: Boolean(webhookUrlOrNull()) && session.webhookUrl === webhookUrlOrNull(),
     });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });

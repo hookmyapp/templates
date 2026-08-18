@@ -159,9 +159,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                 ) : null}
               </div>
             ) : problem ? (
-              <p className="text-destructive text-sm">
-                Could not reach HookMyApp. Check the API key and workspace id above.
-              </p>
+              <p className="text-destructive text-sm">{problem}</p>
             ) : (
               <p className="text-muted-foreground text-sm">Loading sandbox status.</p>
             )}
@@ -196,9 +194,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                 ))}
               </ul>
             ) : problem ? (
-              <p className="text-destructive text-sm">
-                Could not reach HookMyApp. Check the API key and workspace id above.
-              </p>
+              <p className="text-destructive text-sm">{problem}</p>
             ) : (
               <p className="text-muted-foreground text-sm">No WhatsApp numbers connected yet.</p>
             )}
