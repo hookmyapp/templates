@@ -6,19 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { Status } from '@/components/status';
 
 type Channel = { publicId: string; displayName?: string; phoneNumber?: string };
 type Sandbox = {
   session: { id: string; phone: string; webhookUrl: string | null } | null;
   bind?: { code: string; phoneNumber?: string };
   pointsHere?: boolean;
-};
-type Status = {
-  mode: 'sandbox' | 'live';
-  connected: boolean;
-  channelId: string | null;
-  phoneNumberId: string | null;
-  webhookUrl: string | null;
 };
 
 async function post(url: string, body?: unknown) {
@@ -36,20 +30,27 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   const [tab, setTab] = useState<'sandbox' | 'live'>(status.mode);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [sandbox, setSandbox] = useState<Sandbox | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (tab === 'live') {
       fetch('/api/channels')
         .then((r) => r.json())
-        .then((d) => setChannels(d.channels ?? []))
-        .catch(() => setChannels([]));
+        .then((d) => {
+          setChannels(d.channels ?? []);
+          setProblem(d.error ?? null);
+        })
+        .catch((e) => setProblem(String(e)));
     } else {
       const load = () =>
         fetch('/api/sandbox')
           .then((r) => r.json())
-          .then(setSandbox)
-          .catch(() => setSandbox(null));
+          .then((d) => {
+            setSandbox(d.error ? null : d);
+            setProblem(d.error ?? null);
+          })
+          .catch((e) => setProblem(String(e)));
       load();
       const t = setInterval(load, 5000);
       return () => clearInterval(t);
@@ -121,8 +122,12 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                   <p className="text-muted-foreground">to {sandbox.bind.phoneNumber}</p>
                 ) : null}
               </div>
+            ) : problem ? (
+              <p className="text-destructive text-sm">
+                Could not reach HookMyApp. Check the API key and workspace id above.
+              </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Loading sandbox status.</p>
+              <p className="text-muted-foreground text-sm">Loading sandbox status.</p>
             )}
           </TabsContent>
 
@@ -154,8 +159,12 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                   </li>
                 ))}
               </ul>
+            ) : problem ? (
+              <p className="text-destructive text-sm">
+                Could not reach HookMyApp. Check the API key and workspace id above.
+              </p>
             ) : (
-              <p className="text-sm text-muted-foreground">No WhatsApp numbers connected yet.</p>
+              <p className="text-muted-foreground text-sm">No WhatsApp numbers connected yet.</p>
             )}
             <Button
               variant="outline"

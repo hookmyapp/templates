@@ -8,9 +8,10 @@ export async function reply(
   model: string,
   past: Message[],
   incoming: string,
+  apiKey?: string | null,
 ): Promise<string> {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new Error('OPENROUTER_API_KEY is not set');
+  const key = apiKey ?? process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error('Add your OpenRouter key in Settings');
 
   const messages = [
     { role: 'system', content: systemPrompt },

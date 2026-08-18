@@ -12,8 +12,8 @@ Set up this WhatsApp AI agent template and deploy it. Work through the steps in 
 
 3. **OpenRouter key.** Ask me to paste a key from openrouter.ai/keys. This is the one value you cannot get yourself.
 
-4. **Deploy.** From the `whatsapp-ai-agent` directory: `vercel link`, then add `HOOKMYAPP_API_KEY`, `HOOKMYAPP_WORKSPACE_ID`, `OPENROUTER_API_KEY` and `DATABASE_URL` with `vercel env add`, then `vercel deploy --prod`. Give me the deployment URL.
+4. **Deploy.** From the `whatsapp-ai-agent` directory: `vercel link`, add `DATABASE_URL` with `vercel env add`, then `vercel deploy --prod`. Give me the deployment URL.
 
-5. **Check it.** Open the URL and confirm the page loads and the Connection card appears. Tell me to press the sandbox button and send the code from WhatsApp, or ask which of my connected numbers to use.
+5. **Check it.** Open the URL, go to Settings, and tell me to paste the three credentials there. Then tell me to press the sandbox button and send the code from WhatsApp, or ask which of my connected numbers to use.
 
 Rules: never print a secret in full, never commit a `.env` file, and stop and ask if a step fails rather than working around it.

@@ -1,4 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
+// local only, not committed: the docker proxy speaks http, Neon cloud speaks https
+neonConfig.fetchEndpoint = (h, p) => `http://${h}:${p}/sql`;
 
 let client: ReturnType<typeof neon> | null = null;
 
@@ -21,6 +23,9 @@ export type Settings = {
   channel_token: string | null;
   hmac_secret: string | null;
   verify_token: string | null;
+  hookmyapp_api_key: string | null;
+  hookmyapp_workspace_id: string | null;
+  openrouter_api_key: string | null;
 };
 
 export type Message = {
@@ -66,6 +71,9 @@ export function init(): Promise<void> {
         error text,
         created_at timestamptz not null default now()
       )`;
+    await sql`alter table settings add column if not exists hookmyapp_api_key text`;
+    await sql`alter table settings add column if not exists hookmyapp_workspace_id text`;
+    await sql`alter table settings add column if not exists openrouter_api_key text`;
     await sql`create index if not exists messages_contact_idx on messages (contact_wa_id, created_at desc)`;
     await sql`
       insert into settings (id, system_prompt, model)
@@ -83,7 +91,9 @@ export async function getSettings(): Promise<Settings> {
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
   const current = await getSettings();
-  const next = { ...current, ...patch };
+  // undefined means "leave as is"; null is a real value that clears a column.
+  const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+  const next = { ...current, ...defined } as Settings;
   const rows = (await sql`
     update settings set
       system_prompt = ${next.system_prompt},
@@ -96,6 +106,9 @@ export async function saveSettings(patch: Partial<Settings>): Promise<Settings> 
       channel_token = ${next.channel_token},
       hmac_secret = ${next.hmac_secret},
       verify_token = ${next.verify_token},
+      hookmyapp_api_key = ${next.hookmyapp_api_key},
+      hookmyapp_workspace_id = ${next.hookmyapp_workspace_id},
+      openrouter_api_key = ${next.openrouter_api_key},
       updated_at = now()
     where id = 1
     returning *`) as Settings[];

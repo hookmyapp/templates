@@ -12,28 +12,36 @@ The page has no login. Anyone with the URL can read the conversations and change
 
 ## What you need
 
+One environment variable to deploy:
+
 | Value | Where it comes from |
 | --- | --- |
-| `HOOKMYAPP_API_KEY` | An `hmok_` key from hookmyapp.com |
-| `HOOKMYAPP_WORKSPACE_ID` | The `ws_` id the channels live in |
-| `OPENROUTER_API_KEY` | openrouter.ai/keys |
 | `DATABASE_URL` | Any Postgres. Neon has a free tier and works well on Vercel |
 
-Set all four in Vercel, deploy, and open the deployment.
+The rest you paste into **Settings** on the deployed page, where they are stored in that database:
+
+| Value | Where it comes from |
+| --- | --- |
+| HookMyApp API key | An `hmok_` key from hookmyapp.com |
+| Workspace id | The `ws_` id the channels live in |
+| OpenRouter key | openrouter.ai/keys |
+
+They can also be set as `HOOKMYAPP_API_KEY`, `HOOKMYAPP_WORKSPACE_ID` and `OPENROUTER_API_KEY` environment variables. A value saved in Settings wins.
 
 ## First run
 
-1. Open the deployment. The tables are created on the first request.
-2. In **Connection**, pick **Sandbox number** to try it without a Meta account. Send the code shown to the sandbox number from WhatsApp, then press **Receive messages here**.
-3. Or pick **Real number** to use a number you already connected, or to connect a new one through the Meta signup flow.
-4. In **Prompt**, write what the agent should be. It applies to the next message. There is no redeploy.
-5. Message the number. The reply and the conversation appear in **Conversations**.
+1. Open the deployment and go to **Settings**. The tables are created on the first request.
+2. Paste the three credentials and save.
+3. In **Connection**, pick **Sandbox number** to try it without a Meta account. Send the code shown to the sandbox number from WhatsApp, then press **Receive messages here**.
+4. Or pick **Real number** to use a number you already connected, or to connect a new one through the Meta signup flow.
+5. In **Prompt**, write what the agent should be. It applies to the next message. There is no redeploy.
+6. Message the number. The reply and the conversation appear in **Conversations**.
 
 ## Running it locally
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the four values
+cp .env.example .env.local   # DATABASE_URL is the only one you need
 npm run dev
 ```
 

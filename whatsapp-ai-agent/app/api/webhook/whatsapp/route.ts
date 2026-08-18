@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
           settings.model,
           past.slice(0, -1),
           msg.text,
+          settings.openrouter_api_key,
         );
         await sendText(
           {

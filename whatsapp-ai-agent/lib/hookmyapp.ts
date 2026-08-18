@@ -1,19 +1,23 @@
+import { getSettings } from './db';
+
 const API = process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com';
 
-function headers(): Record<string, string> {
-  const key = process.env.HOOKMYAPP_API_KEY;
-  if (!key) throw new Error('HOOKMYAPP_API_KEY is not set');
+/** Keys come from the settings page first, environment second. */
+async function headers(): Promise<Record<string, string>> {
+  const s = await getSettings();
+  const key = s.hookmyapp_api_key ?? process.env.HOOKMYAPP_API_KEY;
+  if (!key) throw new Error('Add your HookMyApp API key in Settings');
   const h: Record<string, string> = {
     Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
   };
-  const ws = process.env.HOOKMYAPP_WORKSPACE_ID;
+  const ws = s.hookmyapp_workspace_id ?? process.env.HOOKMYAPP_WORKSPACE_ID;
   if (ws) h['X-Workspace-Id'] = ws;
   return h;
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API}${path}`, { ...init, headers: headers(), cache: 'no-store' });
+  const res = await fetch(`${API}${path}`, { ...init, headers: await headers(), cache: 'no-store' });
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`HookMyApp ${init.method ?? 'GET'} ${path} failed (${res.status}): ${text}`);

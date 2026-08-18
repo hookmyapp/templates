@@ -1,6 +1,8 @@
 import { getSettings, saveSettings } from '@/lib/db';
 import { webhookUrl } from '@/lib/hookmyapp';
 
+const mask = (v: string | null | undefined) => (v ? `${v.slice(0, 6)}...${v.slice(-4)}` : null);
+
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -20,14 +22,29 @@ export async function GET() {
     sandboxSessionId: s.sandbox_session_id,
     phoneNumberId: s.phone_number_id,
     webhookUrl: url,
+    keys: {
+      hookmyapp: mask(s.hookmyapp_api_key ?? process.env.HOOKMYAPP_API_KEY),
+      workspace: s.hookmyapp_workspace_id ?? process.env.HOOKMYAPP_WORKSPACE_ID ?? null,
+      openrouter: mask(s.openrouter_api_key ?? process.env.OPENROUTER_API_KEY),
+    },
   });
 }
 
 export async function PUT(req: Request) {
-  const body = (await req.json()) as { systemPrompt?: string; model?: string };
-  const s = await saveSettings({
+  const body = (await req.json()) as {
+    systemPrompt?: string;
+    model?: string;
+    hookmyappApiKey?: string;
+    hookmyappWorkspaceId?: string;
+    openrouterApiKey?: string;
+  };
+  await saveSettings({
     system_prompt: body.systemPrompt,
     model: body.model,
+    // Blank means leave the stored value alone.
+    hookmyapp_api_key: body.hookmyappApiKey || undefined,
+    hookmyapp_workspace_id: body.hookmyappWorkspaceId || undefined,
+    openrouter_api_key: body.openrouterApiKey || undefined,
   });
-  return Response.json({ systemPrompt: s.system_prompt, model: s.model });
+  return Response.json({ ok: true });
 }
