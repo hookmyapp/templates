@@ -205,10 +205,22 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
         </Tabs>
 
         {status.webhookUrl ? (
-          <p className="text-xs text-muted-foreground break-all">
+          <p className="text-muted-foreground text-xs break-all">
             Webhook URL: <span className="font-mono">{status.webhookUrl}</span>
           </p>
-        ) : null}
+        ) : (
+          <div className="text-muted-foreground space-y-2 rounded-md border p-3 text-xs">
+            <p className="text-foreground font-medium">Running without a public address</p>
+            <p>
+              You can connect a number, edit the prompt and use the Playground. Receiving messages
+              needs an address HookMyApp can reach. Expose this app and set PUBLIC_URL to the
+              address you get back:
+            </p>
+            <code className="bg-muted block rounded p-2 font-mono">
+              hookmyapp sandbox listen --port 3000 --path /api/webhook/whatsapp
+            </code>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
