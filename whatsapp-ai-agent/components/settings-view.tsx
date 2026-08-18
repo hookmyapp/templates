@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { Check, Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,7 +38,10 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
       <Card>
         <CardHeader>
-          <CardTitle>OpenRouter</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            OpenRouter
+            {status.keys.openrouter ? <Saved /> : null}
+          </CardTitle>
           <CardDescription>
             The key the agent answers with. Get one at openrouter.ai/keys.
           </CardDescription>
@@ -45,7 +50,8 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
           <Field
             id="openrouter"
             label="API key"
-            placeholder={status.keys.openrouter ?? 'sk-or-...'}
+            stored={status.keys.openrouter}
+            hint="sk-or-..."
             value={openrouter}
             onChange={setOpenrouter}
           />
@@ -64,7 +70,10 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
 
       <Card>
         <CardHeader>
-          <CardTitle>HookMyApp</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            HookMyApp
+            {status.keys.hookmyapp && status.keys.workspace ? <Saved /> : null}
+          </CardTitle>
           <CardDescription>
             Used to list your numbers and to point the webhook at this deployment. Leave a field
             blank to keep the current value.
@@ -74,14 +83,16 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
           <Field
             id="hookmyapp-key"
             label="API key"
-            placeholder={status.keys.hookmyapp ?? 'hmok_...'}
+            stored={status.keys.hookmyapp}
+            hint="hmok_..."
             value={hookmyapp.key}
             onChange={(v) => setHookmyapp({ ...hookmyapp, key: v })}
           />
           <Field
             id="workspace"
             label="Workspace id"
-            placeholder={status.keys.workspace ?? 'ws_...'}
+            stored={status.keys.workspace}
+            hint="ws_..."
             value={hookmyapp.workspace}
             onChange={(v) => setHookmyapp({ ...hookmyapp, workspace: v })}
           />
@@ -107,30 +118,63 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
   );
 }
 
+function Saved() {
+  return (
+    <Badge variant="secondary" className="gap-1 font-normal">
+      <Check className="size-3" />
+      Saved
+    </Badge>
+  );
+}
+
+/** A stored value is shown as text with a Replace button, so it reads as set. */
 function Field({
   id,
   label,
-  placeholder,
+  stored,
+  hint,
   value,
   onChange,
 }: {
   id: string;
   label: string;
-  placeholder: string;
+  stored: string | null;
+  hint: string;
   value: string;
   onChange: (v: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const showStored = Boolean(stored) && !editing;
+
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete="off"
-        spellCheck={false}
-      />
+      {showStored ? (
+        <div className="flex items-center gap-2">
+          <Input id={id} value={stored ?? ''} readOnly className="font-mono text-sm" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onChange('');
+              setEditing(true);
+            }}
+          >
+            <Pencil className="size-3.5" />
+            Replace
+          </Button>
+        </div>
+      ) : (
+        <Input
+          id={id}
+          value={value}
+          placeholder={hint}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+          autoFocus={editing}
+        />
+      )}
     </div>
   );
 }
