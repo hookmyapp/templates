@@ -1,7 +1,4 @@
 import { neon, neonConfig } from '@neondatabase/serverless';
-// local only, not committed: the docker proxy speaks http, Neon cloud speaks https
-neonConfig.fetchEndpoint = (h, p) => `http://${h}:${p}/sql`;
-
 // A Neon database is reached over https. A local Postgres behind the Neon
 // http proxy is not, so plain http is used for hosts on this machine.
 if (isLocalDatabase()) {
