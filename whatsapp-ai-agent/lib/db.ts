@@ -141,12 +141,24 @@ export async function history(contact: string, limit = 20): Promise<Message[]> {
   return rows;
 }
 
-export async function contacts(): Promise<{ contact_wa_id: string; last_at: string }[]> {
+export type ContactRow = { contact_wa_id: string; last_at: string; last_body: string };
+
+/** Contacts newest first. A query matches the number or anything either side said. */
+export async function contacts(query = ''): Promise<ContactRow[]> {
   await init();
+  const like = `%${query.trim()}%`;
   return (await sql`
-    select contact_wa_id, max(created_at) as last_at
-    from messages group by contact_wa_id order by last_at desc limit 50`) as {
-    contact_wa_id: string;
-    last_at: string;
-  }[];
+    select distinct on (m.contact_wa_id)
+      m.contact_wa_id,
+      max(m.created_at) over (partition by m.contact_wa_id) as last_at,
+      m.body as last_body
+    from messages m
+    where ${query.trim() === ''}
+       or m.contact_wa_id ilike ${like}
+       or exists (
+         select 1 from messages h
+         where h.contact_wa_id = m.contact_wa_id and h.body ilike ${like}
+       )
+    order by m.contact_wa_id, m.created_at desc
+    limit 50`) as ContactRow[];
 }

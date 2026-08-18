@@ -23,6 +23,7 @@ export default function Home() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [view, setView] = useState<View>('instructions');
+  const [query, setQuery] = useState('');
 
   const loadStatus = useCallback(() => {
     fetch('/api/settings')
@@ -35,7 +36,7 @@ export default function Home() {
 
   useEffect(() => {
     const load = () =>
-      fetch('/api/messages')
+      fetch(`/api/messages?q=${encodeURIComponent(query)}`)
         .then((r) => r.json())
         .then((d) => {
           setContacts(d.contacts ?? []);
@@ -45,7 +46,7 @@ export default function Home() {
     load();
     const t = setInterval(load, 3000);
     return () => clearInterval(t);
-  }, []);
+  }, [query]);
 
   return (
     <SidebarProvider>
@@ -55,6 +56,8 @@ export default function Home() {
         view={view}
         connected={status?.connected ?? false}
         mode={status?.mode ?? 'sandbox'}
+        query={query}
+        onQuery={setQuery}
         onSelect={(id) => {
           setActive(id);
           setView('chat');
@@ -92,6 +95,7 @@ export default function Home() {
               key={status.systemPrompt + status.model + status.temperature}
               status={status}
               onChange={loadStatus}
+              onSettings={() => setView('settings')}
             />
           ) : view === 'playground' ? (
             <PlaygroundView />

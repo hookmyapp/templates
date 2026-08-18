@@ -1,26 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Check, ChevronsUpDown, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import type { Status } from '@/components/status';
+import { cn } from '@/lib/utils';
+
+type Model = { id: string; name: string };
 
 export function InstructionsView({
   status,
   onChange,
+  onSettings,
 }: {
   status: Status;
   onChange: () => void;
+  onSettings: () => void;
 }) {
   const [prompt, setPrompt] = useState(status.systemPrompt);
   const [model, setModel] = useState(status.model);
   const [temperature, setTemperature] = useState(status.temperature);
   const [busy, setBusy] = useState(false);
+  const [models, setModels] = useState<Model[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/models')
+      .then((r) => r.json())
+      .then((d) => setModels(d.connected ? (d.models ?? []) : null))
+      .catch(() => setModels(null));
+  }, []);
 
   const dirty =
     prompt !== status.systemPrompt ||
@@ -73,14 +96,54 @@ export function InstructionsView({
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="model">Model</Label>
-              <Input
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                spellCheck={false}
-              />
-              <p className="text-muted-foreground text-xs">Any model id from openrouter.ai/models.</p>
+              <Label>Model</Label>
+              {models ? (
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger
+                    render={
+                      <Button variant="outline" className="w-full justify-between font-normal" />
+                    }
+                  >
+                    <span className="truncate">{model}</span>
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search models" />
+                      <CommandList>
+                        <CommandEmpty>No model matches.</CommandEmpty>
+                        <CommandGroup>
+                          {models.map((m) => (
+                            <CommandItem
+                              key={m.id}
+                              value={m.id}
+                              onSelect={(v) => {
+                                setModel(v);
+                                setOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn('size-4', model === m.id ? 'opacity-100' : 'opacity-0')}
+                              />
+                              <span className="truncate">{m.id}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full" onClick={onSettings}>
+                    <KeyRound className="size-4" />
+                    Add your OpenRouter key
+                  </Button>
+                  <p className="text-muted-foreground text-xs">
+                    The model list loads once the key is saved.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
