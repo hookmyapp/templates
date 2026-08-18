@@ -171,8 +171,14 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
               disabled={busy}
               onClick={() =>
                 run(async () => {
-                  const link = (await post('/api/connect-link')) as { url: string };
+                  const link = (await post('/api/connect-link')) as {
+                    url: string;
+                    autoConnect: boolean;
+                  };
                   window.open(link.url, '_blank');
+                  if (!link.autoConnect) {
+                    toast.info('Running locally, so pick the number here once it connects.');
+                  }
                 }, 'Connect link opened')
               }
             >

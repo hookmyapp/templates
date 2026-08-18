@@ -1,14 +1,15 @@
-import { createOnboardingLink, selfUrl } from '@/lib/hookmyapp';
+import { createOnboardingLink, isLocalUrl, selfUrl } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
   try {
+    const local = isLocalUrl();
     const link = await createOnboardingLink(
       'WhatsApp AI agent',
-      `${selfUrl()}/api/connected`,
+      local ? undefined : `${selfUrl()}/api/connected`,
     );
-    return Response.json(link);
+    return Response.json({ ...link, autoConnect: !local });
   } catch (err) {
     const message = String(err);
     // An API key without organization scope cannot mint onboarding links.
