@@ -45,15 +45,23 @@ cp .env.example .env.local   # DATABASE_URL is the only one you need
 npm run dev
 ```
 
+`npm install` also installs the HookMyApp CLI into this project, so there is nothing to install globally:
+
+```bash
+npm run hookmyapp -- login          # sign in
+npm run hookmyapp -- channels list  # see your numbers
+npm run skills                      # add the HookMyApp skills to your AI agent
+```
+
 `DATABASE_URL` can point at a Neon database or at a Postgres on your machine. Any port works, the app reads its own address from the request.
 
 Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to an address it can reach, and `localhost` is not one. Expose the app, then open it on that address:
 
 ```bash
-hookmyapp sandbox listen --port 3000 --path /api/webhook/whatsapp
+npm run tunnel        # or PORT=3001 npm run tunnel
 ```
 
-Open the tunnel address in your browser rather than `localhost`, and the webhook points at it with nothing to configure. `PUBLIC_URL` exists as an override for setups that rewrite the host, and is not needed otherwise.
+That prints an address. Open it in your browser instead of `localhost`, and the webhook points at it with nothing to configure. `PUBLIC_URL` exists as an override for setups that rewrite the host, and is not needed otherwise.
 
 ## How it works
 
@@ -74,6 +82,15 @@ The 200 goes out before the model is called, because the model takes seconds and
 | `lib/db.ts` | Schema, settings, message history |
 | `app/api/webhook/whatsapp/route.ts` | The receive and answer loop |
 | `app/api/playground/route.ts` | The Playground, which answers without touching WhatsApp |
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Run the app |
+| `npm run tunnel` | Expose the app so HookMyApp can deliver messages to it |
+| `npm run hookmyapp -- <args>` | The HookMyApp CLI, installed with the project |
+| `npm run skills` | Add the HookMyApp skills to your AI agent |
 
 ## Making it yours
 

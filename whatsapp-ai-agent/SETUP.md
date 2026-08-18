@@ -8,7 +8,7 @@ Set up this WhatsApp AI agent template and deploy it. Work through the steps in 
 
 1. **Database.** Create a Postgres database with Neon, using `neonctl` or the Neon MCP server. Ask me to approve the login in the browser. Read back the connection string. Do not print it in full.
 
-2. **HookMyApp key.** If the `hookmyapp` CLI is installed, run `hookmyapp login` and ask me to approve it. Otherwise register an agent credential over the API with email OTP and ask me for the code that arrives by email. Get the `hmok_` key and the `ws_` workspace id.
+2. **HookMyApp key.** The CLI ships with this project. Run `npm install`, then `npm run hookmyapp -- login` and ask me to approve it in the browser. Get the `hmok_` key and the `ws_` workspace id. Run `npm run skills` so you have the HookMyApp skills available.
 
 3. **OpenRouter key.** Ask me to paste a key from openrouter.ai/keys. This is the one value you cannot get yourself.
 
