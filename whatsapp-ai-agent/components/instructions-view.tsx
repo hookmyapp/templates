@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Check, ChevronsUpDown, KeyRound } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from "react";
+import { Check, ChevronsUpDown, KeyRound } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Command,
   CommandEmpty,
@@ -12,13 +12,17 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Textarea } from '@/components/ui/textarea';
-import type { Status } from '@/components/status';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import type { Status } from "@/components/status";
+import { cn } from "@/lib/utils";
 
 type Model = { id: string; name: string };
 
@@ -39,7 +43,7 @@ export function InstructionsView({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/models')
+    fetch("/api/models")
       .then((r) => r.json())
       .then((d) => setModels(d.connected ? (d.models ?? []) : null))
       .catch(() => setModels(null));
@@ -53,13 +57,13 @@ export function InstructionsView({
   const save = async () => {
     setBusy(true);
     try {
-      const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ systemPrompt: prompt, model, temperature }),
       });
       if (!res.ok) throw new Error(await res.text());
-      toast.success('Saved. The next message uses it.');
+      toast.success("Saved. The next message uses it.");
       onChange();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -101,7 +105,10 @@ export function InstructionsView({
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger
                     render={
-                      <Button variant="outline" className="w-full justify-between font-normal" />
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      />
                     }
                   >
                     <span className="truncate">{model}</span>
@@ -123,7 +130,10 @@ export function InstructionsView({
                               }}
                             >
                               <Check
-                                className={cn('size-4', model === m.id ? 'opacity-100' : 'opacity-0')}
+                                className={cn(
+                                  "size-4",
+                                  model === m.id ? "opacity-100" : "opacity-0",
+                                )}
                               />
                               <span className="truncate">{m.id}</span>
                             </CommandItem>
@@ -134,37 +144,40 @@ export function InstructionsView({
                   </PopoverContent>
                 </Popover>
               ) : (
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full" onClick={onSettings}>
-                    <KeyRound className="size-4" />
-                    Add your OpenRouter key
-                  </Button>
-                  <p className="text-muted-foreground text-xs">
-                    The model list loads once the key is saved.
-                  </p>
-                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={onSettings}
+                >
+                  <KeyRound className="size-4" />
+                  Add your OpenRouter key
+                </Button>
               )}
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="temperature">Temperature</Label>
-                <span className="text-muted-foreground font-mono text-xs">
-                  {temperature.toFixed(1)}
-                </span>
+            {models ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="temperature">Temperature</Label>
+                  <span className="text-muted-foreground font-mono text-xs">
+                    {temperature.toFixed(1)}
+                  </span>
+                </div>
+                <Slider
+                  id="temperature"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={[temperature]}
+                  onValueChange={(v) =>
+                    setTemperature(Array.isArray(v) ? v[0] : v)
+                  }
+                />
+                <div className="text-muted-foreground flex justify-between text-xs">
+                  <span>Reserved</span>
+                  <span>Creative</span>
+                </div>
               </div>
-              <Slider
-                id="temperature"
-                min={0}
-                max={2}
-                step={0.1}
-                value={[temperature]}
-                onValueChange={(v) => setTemperature(Array.isArray(v) ? v[0] : v)}
-              />
-              <div className="text-muted-foreground flex justify-between text-xs">
-                <span>Reserved</span>
-                <span>Creative</span>
-              </div>
-            </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
