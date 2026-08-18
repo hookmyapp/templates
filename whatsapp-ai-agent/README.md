@@ -45,15 +45,15 @@ cp .env.example .env.local   # DATABASE_URL is the only one you need
 npm run dev
 ```
 
-`DATABASE_URL` can point at a Neon database or at a Postgres on your machine.
+`DATABASE_URL` can point at a Neon database or at a Postgres on your machine. Any port works, the app reads its own address from the request.
 
-Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to a public address, and `http://localhost:3000` is not one. To receive locally, expose port 3000 and set `PUBLIC_URL` to the address you get back:
+Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to an address it can reach, and `localhost` is not one. Expose the app, then open it on that address:
 
 ```bash
 hookmyapp sandbox listen --port 3000 --path /api/webhook/whatsapp
 ```
 
-Any tunnel works. The app tells you when an action needs a public address rather than failing quietly.
+Open the tunnel address in your browser rather than `localhost`, and the webhook points at it with nothing to configure. `PUBLIC_URL` exists as an override for setups that rewrite the host, and is not needed otherwise.
 
 ## How it works
 

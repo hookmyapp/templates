@@ -1,5 +1,5 @@
 import { getSettings, saveSettings } from '@/lib/db';
-import { webhookUrl } from '@/lib/hookmyapp';
+import { isReachableFromOutside, webhookUrl } from '@/lib/hookmyapp';
 
 const mask = (v: string | null | undefined) => (v ? `${v.slice(0, 6)}...${v.slice(-4)}` : null);
 
@@ -8,8 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await getSettings();
   let url: string | null = null;
+  let reachable = false;
   try {
-    url = webhookUrl();
+    url = await webhookUrl();
+    reachable = await isReachableFromOutside();
   } catch {
     url = null;
   }
@@ -23,6 +25,7 @@ export async function GET() {
     sandboxSessionId: s.sandbox_session_id,
     phoneNumberId: s.phone_number_id,
     webhookUrl: url,
+    reachable,
     keys: {
       hookmyapp: mask(s.hookmyapp_api_key ?? process.env.HOOKMYAPP_API_KEY),
       workspace: s.hookmyapp_workspace_id ?? process.env.HOOKMYAPP_WORKSPACE_ID ?? null,

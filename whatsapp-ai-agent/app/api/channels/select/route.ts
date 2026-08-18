@@ -1,17 +1,17 @@
 import { channelCredentials, setWebhook, webhookUrl } from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
-import { NO_PUBLIC_URL, webhookUrlOrNull } from '@/lib/hookmyapp';
+import { NO_PUBLIC_URL, isReachableFromOutside } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const { channelId } = (await req.json()) as { channelId: string };
-  if (!webhookUrlOrNull()) {
+  if (!(await isReachableFromOutside())) {
     return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
   }
   try {
     const creds = await channelCredentials(channelId);
-    await setWebhook(channelId, webhookUrl(), creds.verifyToken);
+    await setWebhook(channelId, await webhookUrl(), creds.verifyToken);
     const settings = await saveSettings({
       mode: 'live',
       channel_id: channelId,
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       hmac_secret: creds.hmacSecret,
       verify_token: creds.verifyToken,
     });
-    return Response.json({ ok: true, mode: settings.mode, webhookUrl: webhookUrl() });
+    return Response.json({ ok: true, mode: settings.mode, webhookUrl: await webhookUrl() });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }

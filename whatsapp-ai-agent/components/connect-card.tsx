@@ -33,6 +33,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const port = typeof window === 'undefined' ? '3000' : (window.location.port || '80');
 
   useEffect(() => {
     if (tab === 'live') {
@@ -204,20 +205,20 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
           </TabsContent>
         </Tabs>
 
-        {status.webhookUrl ? (
+        {status.reachable ? (
           <p className="text-muted-foreground text-xs break-all">
             Webhook URL: <span className="font-mono">{status.webhookUrl}</span>
           </p>
         ) : (
           <div className="text-muted-foreground space-y-2 rounded-md border p-3 text-xs">
-            <p className="text-foreground font-medium">Running without a public address</p>
+            <p className="text-foreground font-medium">Only reachable from this machine</p>
             <p>
               You can connect a number, edit the prompt and use the Playground. Receiving messages
-              needs an address HookMyApp can reach. Expose this app and set PUBLIC_URL to the
-              address you get back:
+              needs an address HookMyApp can reach. Expose this app, then open it on that address
+              and everything wires itself up.
             </p>
-            <code className="bg-muted block rounded p-2 font-mono">
-              hookmyapp sandbox listen --port 3000 --path /api/webhook/whatsapp
+            <code className="bg-muted block rounded p-2 font-mono break-all">
+              hookmyapp sandbox listen --port {port} --path /api/webhook/whatsapp
             </code>
           </div>
         )}

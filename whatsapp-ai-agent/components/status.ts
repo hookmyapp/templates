@@ -8,5 +8,6 @@ export type Status = {
   sandboxSessionId: string | null;
   phoneNumberId: string | null;
   webhookUrl: string | null;
+  reachable: boolean;
   keys: { hookmyapp: string | null; workspace: string | null; openrouter: string | null };
 };

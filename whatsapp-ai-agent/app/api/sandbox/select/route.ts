@@ -1,11 +1,11 @@
 import { activeSandboxSession, sandboxCredentials, setSandboxWebhook, webhookUrl } from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
-import { NO_PUBLIC_URL, webhookUrlOrNull } from '@/lib/hookmyapp';
+import { NO_PUBLIC_URL, isReachableFromOutside } from '@/lib/hookmyapp';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  if (!webhookUrlOrNull()) {
+  if (!(await isReachableFromOutside())) {
     return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
   }
   try {
@@ -17,7 +17,7 @@ export async function POST() {
       );
     }
     const creds = sandboxCredentials(session);
-    await setSandboxWebhook(session.id, webhookUrl());
+    await setSandboxWebhook(session.id, await webhookUrl());
     await saveSettings({
       mode: 'sandbox',
       sandbox_session_id: session.id,
@@ -28,7 +28,7 @@ export async function POST() {
       hmac_secret: creds.hmacSecret,
       verify_token: creds.verifyToken,
     });
-    return Response.json({ ok: true, webhookUrl: webhookUrl() });
+    return Response.json({ ok: true, webhookUrl: await webhookUrl() });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }

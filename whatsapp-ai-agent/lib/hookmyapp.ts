@@ -1,9 +1,10 @@
+import { headers } from 'next/headers';
 import { getSettings } from './db';
 
 const API = process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com';
 
 /** Keys come from the settings page first, environment second. */
-async function headers(): Promise<Record<string, string>> {
+async function authHeaders(): Promise<Record<string, string>> {
   const s = await getSettings();
   const key = s.hookmyapp_api_key ?? process.env.HOOKMYAPP_API_KEY;
   if (!key) throw new Error('Add your HookMyApp API key in Settings');
@@ -17,7 +18,7 @@ async function headers(): Promise<Record<string, string>> {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API}${path}`, { ...init, headers: await headers(), cache: 'no-store' });
+  const res = await fetch(`${API}${path}`, { ...init, headers: await authHeaders(), cache: 'no-store' });
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`HookMyApp ${init.method ?? 'GET'} ${path} failed (${res.status}): ${text}`);
@@ -25,28 +26,47 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (text ? JSON.parse(text) : null) as T;
 }
 
-/** Public URL of this deployment, used as the webhook destination. */
-export function selfUrl(): string {
+/**
+ * The address this app is reachable at, taken from the request being served,
+ * so any port and any tunnel host work without configuration. PUBLIC_URL
+ * overrides it when the app sits behind something that rewrites the host.
+ */
+export async function selfUrl(): Promise<string> {
   const explicit = process.env.PUBLIC_URL;
   if (explicit) return explicit.replace(/\/$/, '');
-  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
-  if (!host) throw new Error('Cannot determine the public URL. Set PUBLIC_URL.');
-  return `https://${host}`;
+
+  const incoming = await headers();
+  const host = incoming.get('x-forwarded-host') ?? incoming.get('host');
+  if (host) {
+    const proto = incoming.get('x-forwarded-proto') ?? (isLocalHost(host) ? 'http' : 'https');
+    return `${proto}://${host}`;
+  }
+
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+  throw new Error('Cannot determine the address of this app. Set PUBLIC_URL.');
 }
 
-export const webhookUrl = () => `${selfUrl()}/api/webhook/whatsapp`;
+function isLocalHost(host: string): boolean {
+  const name = host.split(':')[0];
+  return name === 'localhost' || name === '127.0.0.1' || name === '[::1]' || name.endsWith('.local');
+}
 
-/** The webhook URL, or null when the app has no public address yet. */
-export function webhookUrlOrNull(): string | null {
+export async function webhookUrl(): Promise<string> {
+  return `${await selfUrl()}/api/webhook/whatsapp`;
+}
+
+/** True while this app is only reachable from the machine it runs on. */
+export async function isReachableFromOutside(): Promise<boolean> {
   try {
-    return webhookUrl();
+    return !isLocalHost(new URL(await selfUrl()).host);
   } catch {
-    return null;
+    return false;
   }
 }
 
 export const NO_PUBLIC_URL =
-  'This app has no public address, so HookMyApp cannot deliver messages to it. Deploy it, or expose it with a tunnel and set PUBLIC_URL to that address.';
+  'This app is only reachable from your own machine, so HookMyApp cannot deliver messages to it. Expose it with a tunnel and open the app on that address.';
 
 export type Channel = {
   publicId: string;
