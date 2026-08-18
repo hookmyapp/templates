@@ -65,14 +65,6 @@ The 200 goes out before the model is called, because the model takes seconds and
 - **Handle images, buttons, or templates**: `parseInbound` in `lib/whatsapp.ts` keeps text and drops the rest. Extend it, then extend the send helper.
 - **Answer only some messages**: the loop in the webhook route is a plain `for`. Put your condition there.
 
-## Tests
-
-```bash
-npm test
-```
-
-Covers signature verification and payload parsing, the two places a silent break would let unverified traffic through. The full loop involves OpenRouter and the WhatsApp gateway, so verify it by sending a real message to the sandbox number.
-
 ## License
 
 MIT
