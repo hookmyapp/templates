@@ -57,11 +57,15 @@ npm run skills                      # add the HookMyApp skills to your AI agent
 
 Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to an address it can reach, and `localhost` is not one. Expose the app, then open it on that address:
 
+Sign the CLI in once, then use the button:
+
 ```bash
-npm run tunnel        # or PORT=3001 npm run tunnel
+npm run hookmyapp -- login
 ```
 
-That prints an address. Open it in your browser instead of `localhost`, and the webhook points at it with nothing to configure. `PUBLIC_URL` exists as an override for setups that rewrite the host, and is not needed otherwise.
+Connect a number in the app, then press **Run the agent on this computer** in the Connection card. The app runs the tunnel for you and messages start arriving. Press Stop when you are done.
+
+`npm run tunnel` does the same thing from a terminal if you prefer. `PUBLIC_URL` exists as an override for setups that rewrite the host, and is not needed otherwise.
 
 ## How it works
 
@@ -88,7 +92,7 @@ The 200 goes out before the model is called, because the model takes seconds and
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Run the app |
-| `npm run tunnel` | Expose the app so HookMyApp can deliver messages to it |
+| `npm run tunnel` | Expose the app from a terminal, the same thing the Run button does |
 | `npm run hookmyapp -- <args>` | The HookMyApp CLI, installed with the project |
 | `npm run skills` | Add the HookMyApp skills to your AI agent |
 

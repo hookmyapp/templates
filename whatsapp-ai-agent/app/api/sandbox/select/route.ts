@@ -1,13 +1,16 @@
-import { activeSandboxSession, sandboxCredentials, setSandboxWebhook, webhookUrl } from '@/lib/hookmyapp';
+import {
+  activeSandboxSession,
+  isReachableFromOutside,
+  sandboxCredentials,
+  setSandboxWebhook,
+  webhookUrl,
+} from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
-import { NO_PUBLIC_URL, isReachableFromOutside } from '@/lib/hookmyapp';
+
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  if (!(await isReachableFromOutside())) {
-    return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
-  }
   try {
     const session = await activeSandboxSession();
     if (!session) {
@@ -17,7 +20,10 @@ export async function POST() {
       );
     }
     const creds = sandboxCredentials(session);
-    await setSandboxWebhook(session.id, await webhookUrl());
+    // Only point the session at this app when it is reachable. Running on a
+    // laptop, the tunnel started from the Connection card carries the messages.
+    const reachable = await isReachableFromOutside();
+    if (reachable) await setSandboxWebhook(session.id, await webhookUrl());
     await saveSettings({
       mode: 'sandbox',
       sandbox_session_id: session.id,
@@ -28,7 +34,7 @@ export async function POST() {
       hmac_secret: creds.hmacSecret,
       verify_token: creds.verifyToken,
     });
-    return Response.json({ ok: true, webhookUrl: await webhookUrl() });
+    return Response.json({ ok: true, needsTunnel: !reachable });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }

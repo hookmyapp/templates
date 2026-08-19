@@ -6,14 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Play, Square } from 'lucide-react';
 import type { Status } from '@/components/status';
 
 type Channel = { publicId: string; displayName?: string; phoneNumber?: string };
+type Tunnel = {
+  running: boolean;
+  target: string | null;
+  address: string | null;
+  error: string | null;
+};
 type Sandbox = {
   session: { id: string; phone: string; webhookUrl: string | null } | null;
   bind?: { code: string; phoneNumber?: string };
   pointsHere?: boolean;
 };
+
+async function del(url: string) {
+  const res = await fetch(url, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Request failed');
+  return res.json();
+}
 
 async function post(url: string, body?: unknown) {
   const res = await fetch(url, {
@@ -33,7 +46,20 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const port = typeof window === 'undefined' ? '3000' : (window.location.port || '80');
+  const [tunnel, setTunnel] = useState<Tunnel | null>(null);
+
+  // Only relevant while this app is not reachable from outside.
+  useEffect(() => {
+    if (status.reachable || !status.connected) return;
+    const load = () =>
+      fetch('/api/tunnel')
+        .then((r) => r.json())
+        .then(setTunnel)
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [status.reachable, status.connected]);
 
   useEffect(() => {
     if (tab === 'live') {
@@ -209,19 +235,45 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
           <p className="text-muted-foreground text-xs break-all">
             Webhook URL: <span className="font-mono">{status.webhookUrl}</span>
           </p>
-        ) : (
-          <div className="text-muted-foreground space-y-2 rounded-md border p-3 text-xs">
-            <p className="text-foreground font-medium">Only reachable from this machine</p>
-            <p>
-              You can connect a number, edit the prompt and use the Playground. Receiving messages
-              needs an address HookMyApp can reach. Expose this app, then open it on that address
-              and everything wires itself up.
-            </p>
-            <code className="bg-muted block rounded p-2 font-mono break-all">
-              hookmyapp sandbox listen --port {port} --path /api/webhook/whatsapp
-            </code>
+        ) : status.connected ? (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Run the agent on this computer</p>
+                <p className="text-muted-foreground text-xs">
+                  {tunnel?.running
+                    ? `Messages to ${tunnel.target} are arriving here.`
+                    : 'Carries messages to this app while it runs on your machine.'}
+                </p>
+              </div>
+              {tunnel?.running ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    run(() => del('/api/tunnel'), 'Stopped')
+                  }
+                >
+                  <Square className="size-3.5" />
+                  Stop
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => run(() => post('/api/tunnel'), 'Running on this computer')}
+                >
+                  <Play className="size-3.5" />
+                  Run
+                </Button>
+              )}
+            </div>
+            {tunnel?.address ? (
+              <p className="text-muted-foreground font-mono text-xs break-all">{tunnel.address}</p>
+            ) : null}
+            {tunnel?.error ? <p className="text-destructive text-xs">{tunnel.error}</p> : null}
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

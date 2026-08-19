@@ -1,17 +1,21 @@
-import { channelCredentials, setWebhook, webhookUrl } from '@/lib/hookmyapp';
+import {
+  channelCredentials,
+  isReachableFromOutside,
+  setWebhook,
+  webhookUrl,
+} from '@/lib/hookmyapp';
 import { saveSettings } from '@/lib/db';
-import { NO_PUBLIC_URL, isReachableFromOutside } from '@/lib/hookmyapp';
+
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const { channelId } = (await req.json()) as { channelId: string };
-  if (!(await isReachableFromOutside())) {
-    return Response.json({ error: NO_PUBLIC_URL }, { status: 409 });
-  }
   try {
     const creds = await channelCredentials(channelId);
-    await setWebhook(channelId, await webhookUrl(), creds.verifyToken);
+    // See the sandbox route: locally the tunnel carries the messages instead.
+    const reachable = await isReachableFromOutside();
+    if (reachable) await setWebhook(channelId, await webhookUrl(), creds.verifyToken);
     const settings = await saveSettings({
       mode: 'live',
       channel_id: channelId,
@@ -22,7 +26,7 @@ export async function POST(req: Request) {
       hmac_secret: creds.hmacSecret,
       verify_token: creds.verifyToken,
     });
-    return Response.json({ ok: true, mode: settings.mode, webhookUrl: await webhookUrl() });
+    return Response.json({ ok: true, mode: settings.mode, needsTunnel: !reachable });
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 502 });
   }
