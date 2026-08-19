@@ -17,10 +17,18 @@ export type TunnelState = {
 type Tunnel = { child: ChildProcess } & TunnelState;
 
 // Survives the module reloads the dev server does on every edit.
-const store = globalThis as unknown as { __tunnel?: Tunnel };
+const store = globalThis as unknown as { __tunnel?: Tunnel; __tunnelExitHooked?: boolean };
+
+// Registered once, not per start, so restarts do not pile up listeners.
+if (!store.__tunnelExitHooked) {
+  store.__tunnelExitHooked = true;
+  for (const signal of ['exit', 'SIGINT', 'SIGTERM'] as const) {
+    process.once(signal, () => store.__tunnel?.child.kill());
+  }
+}
 
 const BIN = path.join(process.cwd(), 'node_modules', '.bin', 'hookmyapp');
-const ADDRESS = /https:\/\/[a-z0-9.-]+\.[a-z]{2,}/i;
+const ADDRESS = /tunnel active:\s*(https:\/\/\S+)/i;
 const LOGGED_OUT = /not logged in|unauthori[sz]ed|\b401\b/i;
 
 /** Turns what the CLI printed into something worth showing in the card. */
@@ -48,11 +56,15 @@ export function stop(): void {
  * destination at its own tunnel, so nothing here has to know a public URL.
  */
 export function start(opts: { channelId?: string; port: number; target: string }): TunnelState {
+  if (process.env.NODE_ENV === 'production') {
+    return { running: false, target: null, address: null, error: 'Not available in production.' };
+  }
   stop();
 
+  const where = ['--port', String(opts.port), '--path', '/api/webhook/whatsapp'];
   const args = opts.channelId
-    ? ['channels', 'listen', opts.channelId, '--path', '/api/webhook/whatsapp']
-    : ['sandbox', 'listen', '--port', String(opts.port), '--path', '/api/webhook/whatsapp'];
+    ? ['channels', 'listen', opts.channelId, ...where]
+    : ['sandbox', 'listen', ...where];
 
   const child = spawn(BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const tunnel: Tunnel = {
@@ -69,7 +81,7 @@ export function start(opts: { channelId?: string; port: number; target: string }
     const text = chunk.toString();
     process.stdout.write(text);
     const found = text.match(ADDRESS);
-    if (found && !tunnel.address) tunnel.address = found[0];
+    if (found && !tunnel.address) tunnel.address = found[1];
     for (const line of text.split('\n')) {
       if (/^Error:|failed|not signed in|not logged in/i.test(line)) lastError = readable(line);
     }
@@ -85,11 +97,6 @@ export function start(opts: { channelId?: string; port: number; target: string }
     tunnel.running = false;
     if (code) tunnel.error = lastError ?? `The tunnel stopped with code ${code}.`;
   });
-
-  const bye = () => child.kill();
-  process.once('exit', bye);
-  process.once('SIGINT', bye);
-  process.once('SIGTERM', bye);
 
   return status();
 }
