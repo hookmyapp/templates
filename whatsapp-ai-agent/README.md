@@ -10,6 +10,8 @@ No process has to stay running on your machine. Once deployed, the app sets its 
 
 The page has no login. Anyone with the URL can read the conversations and change the prompt. Before you point it at a real number, either turn on Vercel Deployment Protection or add auth of your own.
 
+The keys you paste into Settings are stored as plain text in your own database, which is also where the channel token lives. Treat that database as a secret.
+
 ## What you need
 
 One environment variable to deploy:
