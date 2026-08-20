@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 /**
@@ -27,7 +28,18 @@ if (!store.__tunnelExitHooked) {
   }
 }
 
-const BIN = path.join(process.cwd(), 'node_modules', '.bin', 'hookmyapp');
+/**
+ * The CLI's own entry file, run with this Node. The `node_modules/.bin` shim is
+ * a shell script on macOS and Linux but a `.cmd` file on Windows, which spawn
+ * cannot execute without a shell.
+ */
+function cliEntry(): string {
+  // Resolved from the project root: the bundler rewrites module paths.
+  const require_ = createRequire(path.join(process.cwd(), 'package.json'));
+  const manifest = require_.resolve('@gethookmyapp/cli/package.json');
+  const bin = require_('@gethookmyapp/cli/package.json').bin as Record<string, string>;
+  return path.join(path.dirname(manifest), bin.hookmyapp);
+}
 const ADDRESS = /tunnel active:\s*(https:\/\/\S+)/i;
 const LOGGED_OUT = /not logged in|unauthori[sz]ed|\b401\b/i;
 
@@ -61,12 +73,17 @@ export function start(opts: { channelId?: string; port: number; target: string }
   }
   stop();
 
-  const where = ['--port', String(opts.port), '--path', '/api/webhook/whatsapp'];
-  const args = opts.channelId
-    ? ['channels', 'listen', opts.channelId, ...where]
-    : ['sandbox', 'listen', ...where];
+  const where = ['--port', String(Math.trunc(opts.port)), '--path', '/api/webhook/whatsapp'];
+  const channel = opts.channelId && /^ch_[A-Za-z0-9]{4,}$/.test(opts.channelId) ? opts.channelId : null;
+  const args = channel ? ['channels', 'listen', channel, ...where] : ['sandbox', 'listen', ...where];
 
-  const child = spawn(BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  let child: ChildProcess;
+  try {
+    child = spawn(process.execPath, [cliEntry(), ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { running: false, target: null, address: null, error: `Could not start the CLI: ${message}` };
+  }
   const tunnel: Tunnel = {
     child,
     running: true,
