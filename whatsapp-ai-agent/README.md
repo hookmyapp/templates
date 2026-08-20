@@ -6,6 +6,10 @@ No process has to stay running on your machine. Once deployed, the app sets its 
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fhookmyapp%2Ftemplates%2Ftree%2Fmain%2Fwhatsapp-ai-agent)
 
+## Set it up with an AI agent
+
+[SETUP.md](./SETUP.md) is a prompt you paste into Claude, Codex or Cursor. It installs the skills, clones this template, creates your HookMyApp key over email, writes the env file and starts the app. You supply an email, a 6-digit code, and an OpenRouter key.
+
 ## Heads up
 
 The page has no login. Anyone with the URL can read the conversations and change the prompt. Before you point it at a real number, either turn on Vercel Deployment Protection or add auth of your own.
