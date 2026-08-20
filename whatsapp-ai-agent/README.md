@@ -18,11 +18,13 @@ The keys you paste into Settings are stored as plain text in your own database, 
 
 ## What you need
 
-One environment variable to deploy:
+Nothing at all to run it locally. One environment variable to deploy:
 
 | Value | Where it comes from |
 | --- | --- |
 | `DATABASE_URL` | Any Postgres. Neon has a free tier and works well on Vercel |
+
+Locally you can skip it. With no `DATABASE_URL`, the app runs a Postgres of its own that keeps its data in `.pglite`, so there is no database account to create and nothing to install. A deployment needs the real thing, because its filesystem does not survive.
 
 The rest you paste into **Settings** on the deployed page, where they are stored in that database:
 
@@ -61,7 +63,7 @@ npm run hookmyapp -- channels list  # see your numbers
 npm run skills                      # add the HookMyApp skills to your AI agent
 ```
 
-`DATABASE_URL` can point at a Neon database or at a Postgres on your machine. Any port works, the app reads its own address from the request.
+Leave `DATABASE_URL` unset and the app uses its own built-in Postgres, stored in `.pglite`. Set it to a Neon database or a Postgres on your machine when you want one. Any port works, the app reads its own address from the request.
 
 Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to an address it can reach, and `localhost` is not one. Expose the app, then open it on that address:
 

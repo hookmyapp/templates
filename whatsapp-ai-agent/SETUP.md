@@ -40,14 +40,13 @@ Set up the HookMyApp WhatsApp AI agent for me. Follow these steps in order and s
 
    That writes `HOOKMYAPP_API_KEY` and `HOOKMYAPP_WORKSPACE_ID` into `.env.local`. Do not request a second code.
 
-5. **Get a database.** The app needs any Postgres. If `neonctl` or a Neon MCP server is available, create a project with it and read the connection string, asking me to approve the browser login. Otherwise ask me for a `DATABASE_URL`.
+5. **Skip the database.** Running on my machine the app uses its own built-in Postgres, so there is nothing to create and nothing to ask me for. Only a deployment needs a real one.
 
 6. **Get an OpenRouter key.** Ask me to paste one from https://openrouter.ai/keys. This is the only value you cannot obtain yourself.
 
-7. **Add the remaining values to `.env.local`**, keeping the two lines `npm run connect` already wrote:
+7. **Add the OpenRouter key to `.env.local`**, keeping the two lines `npm run connect` already wrote:
 
    ```
-   DATABASE_URL=<the connection string>
    OPENROUTER_API_KEY=<my OpenRouter key>
    ```
 
@@ -63,6 +62,6 @@ Set up the HookMyApp WhatsApp AI agent for me. Follow these steps in order and s
     - Open the URL. Everything is already filled in under Settings.
     - Under Connection, on **Sandbox number**, send the code shown to the sandbox number from WhatsApp. No Meta account is needed.
     - To receive messages while it runs on my machine, the CLI needs its own sign-in: `npm run hookmyapp -- login`. Then press **Run the agent on this computer** in the Connection card.
-    - Deploying to Vercel needs no tunnel. Only `DATABASE_URL` has to be set there; the rest can be pasted into Settings on the deployment.
+    - Deploying to Vercel needs no tunnel. It does need a real `DATABASE_URL`, because the built-in one does not survive there. The rest can be pasted into Settings on the deployment.
 
 Rules: never print a key in full, never commit `.env.local`, and if a step fails, STOP and tell me the exact error. Do not re-run `npm run connect` for a new code unless every existing code is expired or locked and I approve it.

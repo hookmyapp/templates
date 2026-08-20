@@ -1,4 +1,6 @@
+import path from 'node:path';
 import { neon, neonConfig } from '@neondatabase/serverless';
+
 // A Neon database is reached over https. A local Postgres behind the Neon
 // http proxy is not, so plain http is used for hosts on this machine.
 if (isLocalDatabase()) {
@@ -14,12 +16,39 @@ function isLocalDatabase(): boolean {
   }
 }
 
-let client: ReturnType<typeof neon> | null = null;
+type Query = (text: string, values: unknown[]) => Promise<Record<string, unknown>[]>;
 
-/** Lazy so a missing DATABASE_URL fails at request time, not at build time. */
-export function sql(...args: Parameters<ReturnType<typeof neon>>) {
-  client ??= neon(process.env.DATABASE_URL!);
-  return client(...args);
+let query: Promise<Query> | null = null;
+
+/**
+ * With DATABASE_URL set, queries go to that Postgres. Without it, they go to a
+ * Postgres built into the project that keeps its data in `.pglite`, so running
+ * this locally needs no database account and nothing installed. Both speak the
+ * same SQL, so there is one set of queries either way.
+ */
+function connect(): Promise<Query> {
+  query ??= (async () => {
+    if (process.env.DATABASE_URL) {
+      const client = neon(process.env.DATABASE_URL);
+      return (text, values) => client.query(text, values) as Promise<Record<string, unknown>[]>;
+    }
+    const { PGlite } = await import('@electric-sql/pglite');
+    const db = await PGlite.create(path.join(process.cwd(), '.pglite'));
+    return async (text, values) => (await db.query(text, values)).rows as Record<string, unknown>[];
+  })();
+  return query;
+}
+
+/** Tagged template, so every call site reads as plain SQL with real parameters. */
+export async function sql(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<Record<string, unknown>[]> {
+  const text = strings.reduce(
+    (acc, part, i) => acc + part + (i < values.length ? `$${i + 1}` : ''),
+    '',
+  );
+  return (await connect())(text, values);
 }
 
 export type Mode = 'sandbox' | 'live';
@@ -42,7 +71,8 @@ export type Settings = {
 };
 
 export type Message = {
-  id: string;
+  // Postgres returns a bigserial as a string, the built-in store as a number.
+  id: string | number;
   contact_wa_id: string;
   direction: 'in' | 'out';
   body: string;
@@ -163,7 +193,7 @@ export async function contacts(query = ''): Promise<ContactRow[]> {
     select distinct on (m.contact_wa_id)
       m.contact_wa_id,
       max(m.created_at) over (partition by m.contact_wa_id) as last_at,
-      m.body as last_body
+      coalesce(nullif(m.body, ''), 'Could not answer: ' || m.error, '') as last_body
     from messages m
     where ${query.trim() === ''}
        or m.contact_wa_id ilike ${like}
