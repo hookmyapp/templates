@@ -65,6 +65,8 @@ npm run skills                      # add the HookMyApp skills to your AI agent
 
 Leave `DATABASE_URL` unset and the app uses its own built-in Postgres, stored in `.pglite`. Set it to a Neon database or a Postgres on your machine when you want one. Any port works, the app reads its own address from the request.
 
+Only one process can hold the built-in database, so a second `npm run dev` on the same folder waits instead of starting. Stop the first one, or point `DATABASE_URL` at a real Postgres to run several at once.
+
 Connecting a number, editing the prompt and the Playground all work as they are. Receiving messages does not: HookMyApp delivers to an address it can reach, and `localhost` is not one. Expose the app, then open it on that address:
 
 Sign the CLI in once, then use the button:
