@@ -34,6 +34,8 @@ The rest you paste into **Settings** on the deployed page, where they are stored
 
 They can also be set as `HOOKMYAPP_API_KEY`, `HOOKMYAPP_WORKSPACE_ID` and `OPENROUTER_API_KEY` environment variables. A value saved in Settings wins.
 
+Running locally, `npm run connect` fetches the first two for you. It emails you a code, exchanges it for a key, and writes both into `.env.local`. Nothing to copy from a dashboard.
+
 ## First run
 
 1. Open the deployment and go to **Settings**. The tables are created on the first request.
@@ -99,6 +101,7 @@ The 200 goes out before the model is called, because the model takes seconds and
 | --- | --- |
 | `npm run dev` | Run the app |
 | `npm run tunnel` | Expose the app from a terminal, the same thing the Run button does |
+| `npm run connect` | Get a HookMyApp key by email and write it to `.env.local` |
 | `npm run hookmyapp -- <args>` | The HookMyApp CLI, installed with the project |
 | `npm run skills` | Add the HookMyApp skills to your AI agent |
 

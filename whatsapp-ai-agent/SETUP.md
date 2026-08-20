@@ -26,46 +26,32 @@ Set up the HookMyApp WhatsApp AI agent for me. Follow these steps in order and s
 
    That also installs the HookMyApp CLI into the project. Nothing goes on my machine globally.
 
-4. **Create my HookMyApp key.** This also creates my free account if I do not have one. Look for an email address that is likely mine, from `git config user.email` or earlier context. If you found one, ask: "Your free HookMyApp account needs an email address. Should I use <the address>, or a different one?" If you found none, ask: "Which email should I use for your free HookMyApp account?" Keep it to that one question. Once I answer, run this exactly once:
+4. **Create my HookMyApp key.** This also creates my free account if I do not have one. Look for an email address that is likely mine, from `git config user.email` or earlier context. If you found one, ask: "Your free HookMyApp account needs an email address. Should I use <the address>, or a different one?" If you found none, ask: "Which email should I use for your free HookMyApp account?" Keep it to that one question. Then run this exactly once:
 
    ```
-   curl -s -X POST https://api.hookmyapp.com/agent/auth/claim \
-     -H 'Content-Type: application/json' \
-     -d '{"email":"<my email>","scopes":["workspace.read","channel.connect","channel.read","channel.manage","messages.read"]}'
+   npm run connect -- --email <my email>
    ```
 
-   Save the `registrationId` from the response. Do not request another code. Tell me: "I sent a 6-digit code to <email>, paste it here." Then:
+   It emails me a 6-digit code and prints the command to finish. Tell me: "I sent a 6-digit code to <email>, paste it here." Then run the finishing command it printed:
 
    ```
-   curl -s -X POST https://api.hookmyapp.com/agent/auth/claim/complete \
-     -H 'Content-Type: application/json' \
-     -d '{"registrationId":"<the saved registrationId>","otp":"<the 6-digit code>"}'
+   npm run connect -- --email <my email> --registration-id <the printed id> --otp <the 6-digit code>
    ```
 
-   The response carries `accessToken`, an `hmok_` key. It is shown once, so keep it for the next steps and do not print it in full.
+   That writes `HOOKMYAPP_API_KEY` and `HOOKMYAPP_WORKSPACE_ID` into `.env.local`. Do not request a second code.
 
-5. **Find the workspace.**
+5. **Get a database.** The app needs any Postgres. If `neonctl` or a Neon MCP server is available, create a project with it and read the connection string, asking me to approve the browser login. Otherwise ask me for a `DATABASE_URL`.
 
-   ```
-   curl -s https://api.hookmyapp.com/workspaces -H 'Authorization: Bearer <the hmok_ key>'
-   ```
+6. **Get an OpenRouter key.** Ask me to paste one from https://openrouter.ai/keys. This is the only value you cannot obtain yourself.
 
-   Take the `ws_` id. If there is more than one, show me the names and ask which.
-
-6. **Get a database.** The app needs any Postgres. If `neonctl` or a Neon MCP server is available, create a project with it and read the connection string, asking me to approve the browser login. Otherwise ask me for a `DATABASE_URL`.
-
-7. **Get an OpenRouter key.** Ask me to paste one from https://openrouter.ai/keys. This is the only value you cannot obtain yourself.
-
-8. **Write `.env.local`** in `templates/whatsapp-ai-agent`, with real values and no placeholders:
+7. **Add the remaining values to `.env.local`**, keeping the two lines `npm run connect` already wrote:
 
    ```
    DATABASE_URL=<the connection string>
-   HOOKMYAPP_API_KEY=<the hmok_ key>
-   HOOKMYAPP_WORKSPACE_ID=<the ws_ id>
    OPENROUTER_API_KEY=<my OpenRouter key>
    ```
 
-9. **Start it.** Run `npm run dev` in the background and tell me the URL it prints. The app creates its own tables on the first request. Confirm it answers:
+8. **Start it.** Run `npm run dev` in the background and tell me the URL it prints. The app creates its own tables on the first request. Confirm it answers:
 
    ```
    curl -s http://localhost:3000/api/settings
@@ -73,10 +59,10 @@ Set up the HookMyApp WhatsApp AI agent for me. Follow these steps in order and s
 
    `connected` will be `false` until a number is attached, which is expected.
 
-10. **Tell me how to finish**, in this order:
+9. **Tell me how to finish**, in this order:
     - Open the URL. Everything is already filled in under Settings.
     - Under Connection, on **Sandbox number**, send the code shown to the sandbox number from WhatsApp. No Meta account is needed.
     - To receive messages while it runs on my machine, the CLI needs its own sign-in: `npm run hookmyapp -- login`. Then press **Run the agent on this computer** in the Connection card.
     - Deploying to Vercel needs no tunnel. Only `DATABASE_URL` has to be set there; the rest can be pasted into Settings on the deployment.
 
-Rules: never print a key in full, never commit `.env.local`, and if a step fails, STOP and tell me the exact error. Do not re-run the claim command or request a second code unless every existing code is expired or locked and I approve it.
+Rules: never print a key in full, never commit `.env.local`, and if a step fails, STOP and tell me the exact error. Do not re-run `npm run connect` for a new code unless every existing code is expired or locked and I approve it.
