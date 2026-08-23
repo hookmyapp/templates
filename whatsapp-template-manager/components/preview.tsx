@@ -14,6 +14,7 @@ import {
   MapPin,
   Mic,
   Phone,
+  PhoneCall,
   Plus,
   Reply,
   Sticker,
@@ -87,19 +88,17 @@ export function Preview({
         <div className="mx-auto w-full max-w-[340px] space-y-1.5">
           {chrome ? (
             <div className="pb-1 text-center">
-              <span className="rounded-lg bg-[#e1d8cd]/90 px-2.5 py-1 text-[11px] font-medium text-[#5c5750]">
+              <span className="rounded-lg bg-[#dbdfeb] px-2.5 py-1 text-[11px] font-medium text-[#414350] dark:bg-[#1d282f] dark:text-[#8696a0]">
                 Today
               </span>
             </div>
           ) : null}
-        <Bubble>
-          <Header header={header} />
-          {offer ? <Offer offer={offer} /> : null}
-          <Body body={body} template={template} />
-          <Footer footer={footer} template={template} />
-        </Bubble>
-
-          {buttons?.buttons?.length ? <Buttons buttons={buttons.buttons} /> : null}
+          <Bubble buttons={buttons?.buttons}>
+            <Header header={header} />
+            {offer ? <Offer offer={offer} /> : null}
+            <Body body={body} template={template} />
+            <Footer footer={footer} template={template} />
+          </Bubble>
           {carousel ? <Carousel carousel={carousel} /> : null}
         </div>
       </div>
@@ -137,7 +136,7 @@ function Thread({ name }: { name: string }) {
         {name.slice(0, 1).toUpperCase()}
       </span>
       <span className="min-w-0">
-        <span className="flex items-center gap-1 text-[13px] font-semibold leading-tight">
+        <span className="flex items-center gap-1 text-[14px] font-semibold leading-tight">
           <span className="truncate">{name}</span>
           <BadgeCheck className="size-3 shrink-0 text-[#00a884]" />
         </span>
@@ -145,17 +144,45 @@ function Thread({ name }: { name: string }) {
           business account
         </span>
       </span>
+      <span className="ml-auto flex shrink-0 items-center gap-3.5 text-[#007aff]">
+        <Video className="size-[18px]" />
+        <PhoneCall className="size-[17px]" />
+      </span>
     </div>
   );
 }
 
-function Bubble({ children }: { children: React.ReactNode }) {
+/**
+ * The message card. Its buttons sit inside it, under a hairline, which is how
+ * WhatsApp draws a template: one card, not a bubble with pills floating below.
+ */
+function Bubble({
+  children,
+  buttons,
+}: {
+  children: React.ReactNode;
+  buttons?: ButtonModel[];
+}) {
   return (
-    <div className="relative rounded-[9px] rounded-tl-[2px] bg-white px-2 pb-4 pt-2 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33] dark:text-[#e9edef]">
-      {children}
-      <span className="absolute bottom-1 right-2 text-[11px] leading-none text-[#7d8a80] dark:text-[#8696a0]">
-        10:24
-      </span>
+    <div className="overflow-hidden rounded-[9px] rounded-tl-[2px] bg-white text-[#111b21] shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33] dark:text-[#e9edef]">
+      <div className="relative px-2 pb-4 pt-2 text-[14.2px] leading-[19px]">
+        {children}
+        <span className="absolute bottom-1 right-2 text-[11px] leading-none text-[#7d8a80] dark:text-[#8696a0]">
+          10:24
+        </span>
+      </div>
+      {buttons?.map((button, index) => {
+        const Icon = BUTTON_ICON[button.type] ?? Reply;
+        return (
+          <div
+            key={index}
+            className="flex items-center justify-center gap-1.5 border-t border-[#e9edef] py-2.5 text-[14px] font-medium text-[#007aff] dark:border-[#2a3942] dark:text-[#53bdeb]"
+          >
+            <Icon className="size-4" />
+            {label(button)}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -274,25 +301,6 @@ function label(button: ButtonModel): string {
   return button.text || button.type.toLowerCase().replace(/_/g, " ");
 }
 
-function Buttons({ buttons }: { buttons: ButtonModel[] }) {
-  return (
-    <div className="space-y-1.5">
-      {buttons.map((button, index) => {
-        const Icon = BUTTON_ICON[button.type] ?? Reply;
-        return (
-          <div
-            key={index}
-            className="flex items-center justify-center gap-1.5 rounded-[9px] bg-white py-2 text-[14px] font-medium text-[#007aff] shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33] dark:text-[#53bdeb]"
-          >
-            <Icon className="size-4" />
-            {label(button)}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function Carousel({ carousel }: { carousel: CarouselComponent }) {
   return (
     <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
@@ -301,17 +309,30 @@ function Carousel({ carousel }: { carousel: CarouselComponent }) {
         const body = card.components.find((c) => c.type === "BODY") as BodyComponent | undefined;
         const buttons = card.components.find((c) => c.type === "BUTTONS") as ButtonsComponent | undefined;
         return (
-          <div key={index} className="w-[210px] shrink-0 snap-start space-y-1.5">
-            <div className="overflow-hidden rounded-[9px] bg-white p-1.5 shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33]">
-              <Header header={header} />
-              {body?.text ? (
-                <div
-                  className="px-0.5 pb-1 text-[13.5px] leading-[18px] text-[#111b21] dark:text-[#e9edef]"
-                  dangerouslySetInnerHTML={{ __html: toHtml(fill(body.text, bodySamples(body))) }}
-                />
-              ) : null}
+          <div key={index} className="w-[210px] shrink-0 snap-start">
+            <div className="overflow-hidden rounded-[9px] bg-white shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33]">
+              <div className="p-1.5">
+                <Header header={header} />
+                {body?.text ? (
+                  <div
+                    className="px-0.5 pb-1 text-[13.5px] leading-[18px] text-[#111b21] dark:text-[#e9edef]"
+                    dangerouslySetInnerHTML={{ __html: toHtml(fill(body.text, bodySamples(body))) }}
+                  />
+                ) : null}
+              </div>
+              {buttons?.buttons?.map((button, b) => {
+                const Icon = BUTTON_ICON[button.type] ?? Reply;
+                return (
+                  <div
+                    key={b}
+                    className="flex items-center justify-center gap-1.5 border-t border-[#e9edef] py-2 text-[13.5px] font-medium text-[#007aff] dark:border-[#2a3942] dark:text-[#53bdeb]"
+                  >
+                    <Icon className="size-3.5" />
+                    {label(button)}
+                  </div>
+                );
+              })}
             </div>
-            {buttons?.buttons?.length ? <Buttons buttons={buttons.buttons} /> : null}
           </div>
         );
       })}

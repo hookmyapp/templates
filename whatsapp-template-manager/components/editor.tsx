@@ -215,6 +215,11 @@ function Basics({
               <SelectItem value="NAMED">Named, like {"{{order_id}}"}</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {template.parameter_format === "NAMED"
+              ? "Values are sent by name, so adding one later does not renumber the rest."
+              : "Values are sent in order. A template cannot mix the two styles."}
+          </p>
         </div>
       </div>
     </Section>
