@@ -147,7 +147,7 @@ const MEDIA_ICON = {
 } as const;
 
 function Header({ header }: { header?: HeaderComponent }) {
-  const [broken, setBroken] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const samples = headerSamples(header);
   if (!header) return null;
 
@@ -163,24 +163,26 @@ function Header({ header }: { header?: HeaderComponent }) {
 
   const Icon = MEDIA_ICON[header.format];
   const preview = header.example?.header_handle?.[0];
-  const isUrl = preview?.startsWith("http") && !broken;
+  const isUrl = preview?.startsWith("http");
 
   return (
-    <div className="mb-1.5 flex h-36 items-center justify-center overflow-hidden rounded-md bg-[#ccd0d5] text-[#54656f] dark:bg-[#111b21] dark:text-[#8696a0]">
+    <div className="relative mb-1.5 flex h-36 items-center justify-center overflow-hidden rounded-md bg-[#ccd0d5] text-[#54656f] dark:bg-[#111b21] dark:text-[#8696a0]">
+      <div className="flex flex-col items-center gap-1 text-xs">
+        <Icon className="size-7" />
+        <span className="uppercase tracking-wide">{header.format}</span>
+      </div>
       {isUrl && header.format === "IMAGE" ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={preview}
           alt=""
-          className="h-full w-full object-cover"
-          onError={() => setBroken(true)}
+          onLoad={() => setLoaded(true)}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            loaded ? "opacity-100" : "opacity-0",
+          )}
         />
-      ) : (
-        <div className="flex flex-col items-center gap-1 text-xs">
-          <Icon className="size-7" />
-          <span className="uppercase tracking-wide">{header.format}</span>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
