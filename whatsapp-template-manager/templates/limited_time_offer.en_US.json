@@ -1,0 +1,48 @@
+{
+  "name": "limited_time_offer",
+  "language": "en_US",
+  "category": "MARKETING",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "https://example.com/offer.jpg"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, this weekend is 20 percent off everything. The code below does it at checkout.",
+      "example": {
+        "body_text": [
+          [
+            "Sam"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "LIMITED_TIME_OFFER",
+      "limited_time_offer": {
+        "text": "Ends Sunday",
+        "has_expiration": true
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "COPY_CODE",
+          "example": "WEEKEND20"
+        },
+        {
+          "type": "URL",
+          "text": "Shop now",
+          "url": "https://example.com/sale"
+        }
+      ]
+    }
+  ]
+}

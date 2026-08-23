@@ -1,0 +1,28 @@
+{
+  "name": "welcome_message",
+  "language": "en_US",
+  "category": "MARKETING",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Welcome"
+    },
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, thanks for joining {{2}}. Write back whenever you need a hand, this number is read by a person.",
+      "example": {
+        "body_text": [
+          [
+            "Sam",
+            "Acme"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "Reply STOP to unsubscribe"
+    }
+  ]
+}

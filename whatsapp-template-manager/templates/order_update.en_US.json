@@ -1,0 +1,42 @@
+{
+  "name": "order_update",
+  "language": "en_US",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Order update"
+    },
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, order {{2}} is now {{3}}. We will write again when it moves.",
+      "example": {
+        "body_text": [
+          [
+            "Sam",
+            "A-1024",
+            "out for delivery"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "Reply STOP to unsubscribe"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Track order",
+          "url": "https://example.com/orders/{{1}}",
+          "example": [
+            "https://example.com/orders/A-1024"
+          ]
+        }
+      ]
+    }
+  ]
+}

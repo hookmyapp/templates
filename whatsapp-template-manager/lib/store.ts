@@ -1,0 +1,195 @@
+import { readFile, readdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { keyOf, type Template, type TemplateStatus } from "./core";
+
+/**
+ * Where the templates live: one JSON file each, in `templates/`.
+ *
+ * A file rather than a database, because the point of this app is that an AI
+ * agent sitting in the same folder can read a template, change it, and have
+ * the change show up in the browser and in `git diff`. A row in Postgres does
+ * none of that.
+ *
+ * A deployment has no writable disk, so saving is turned off there and the app
+ * becomes a reader of whatever was committed. The editor says so rather than
+ * losing work quietly.
+ */
+
+const DIR = path.join(process.cwd(), "templates");
+const FILE = path.join(process.cwd(), "feedback.json");
+
+export { keyOf };
+
+const fileOf = (key: string) => path.join(DIR, `${key}.json`);
+
+/** A key that could escape the templates folder is not a key. */
+function assertKey(key: string): void {
+  if (!/^[a-z0-9_]+\.[A-Za-z_]+$/.test(key)) {
+    throw new Error(`"${key}" is not a template key. Expected something like order_update.en_US.`);
+  }
+}
+
+export async function list(): Promise<Template[]> {
+  let files: string[];
+  try {
+    files = await readdir(DIR);
+  } catch {
+    return [];
+  }
+  const templates = await Promise.all(
+    files
+      .filter((file) => file.endsWith(".json"))
+      .map(async (file) => {
+        try {
+          return JSON.parse(await readFile(path.join(DIR, file), "utf8")) as Template;
+        } catch {
+          // A half-written or hand-mangled file should not take the page down.
+          return null;
+        }
+      }),
+  );
+  return templates
+    .filter((template): template is Template => Boolean(template?.name))
+    .sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+}
+
+export async function read(key: string): Promise<Template | null> {
+  assertKey(key);
+  try {
+    return JSON.parse(await readFile(fileOf(key), "utf8")) as Template;
+  } catch {
+    return null;
+  }
+}
+
+export async function write(template: Template): Promise<string> {
+  const key = keyOf(template);
+  assertKey(key);
+  await writeFile(fileOf(key), `${JSON.stringify(template, null, 2)}\n`);
+  return key;
+}
+
+export async function remove(key: string): Promise<void> {
+  assertKey(key);
+  await unlink(fileOf(key)).catch(() => {});
+}
+
+/** True when this copy can save. False on a deployment, where the disk is read-only. */
+export async function writable(): Promise<boolean> {
+  const probe = path.join(DIR, ".writable");
+  try {
+    await writeFile(probe, "");
+    await unlink(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ---------------------------------------------------------------- feedback */
+
+/**
+ * A note left on a template, for the agent to act on.
+ *
+ * `path` is the same dotted path the validator uses, so a note on
+ * `components.1.text` and an error on `components.1.text` point at the same
+ * field, and the agent does not have to guess which sentence was meant.
+ */
+export interface Feedback {
+  id: string;
+  /** Template key, e.g. `order_update.en_US`. */
+  template: string;
+  /** Field the note is attached to, when it is attached to one. */
+  path?: string;
+  /** The text that was highlighted when the note was written. */
+  quote?: string;
+  /** What you want changed. */
+  body: string;
+  status: "open" | "done";
+  created: string;
+  /** What the agent did about it. */
+  answered?: { at: string; note: string };
+}
+
+export async function feedback(): Promise<Feedback[]> {
+  try {
+    const parsed = JSON.parse(await readFile(FILE, "utf8")) as Feedback[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function save(all: Feedback[]): Promise<void> {
+  await writeFile(FILE, `${JSON.stringify(all, null, 2)}\n`);
+}
+
+export async function addFeedback(
+  note: Omit<Feedback, "id" | "created" | "status">,
+): Promise<Feedback> {
+  const created: Feedback = {
+    ...note,
+    id: `f_${Math.random().toString(36).slice(2, 8)}`,
+    status: "open",
+    created: new Date().toISOString(),
+  };
+  await save([...(await feedback()), created]);
+  return created;
+}
+
+export async function updateFeedback(id: string, patch: Partial<Feedback>): Promise<Feedback | null> {
+  const all = await feedback();
+  const found = all.find((note) => note.id === id);
+  if (!found) return null;
+  Object.assign(found, patch, { id: found.id });
+  await save(all);
+  return found;
+}
+
+export async function deleteFeedback(id: string): Promise<void> {
+  await save((await feedback()).filter((note) => note.id !== id));
+}
+
+/* ------------------------------------------------------------------ account */
+
+/**
+ * What the account last said about a template, kept beside the templates
+ * rather than inside them.
+ *
+ * A template file is a definition: the thing you would submit. Whether it is
+ * approved is not part of that, it is a fact about one WhatsApp Business
+ * account at one moment. Writing it into the template would mean a clone of
+ * this repository carries someone else's review state, and a `git diff` on a
+ * wording change would also show a status that nobody edited.
+ *
+ * Refreshed by reading the account, and by submitting.
+ */
+export interface AccountState {
+  status: TemplateStatus;
+  /** Meta's id for the template. */
+  id?: string;
+  /** Present when Meta rejected it. */
+  rejected_reason?: string;
+  /** When we last heard this. */
+  checked: string;
+}
+
+const STATUS = path.join(process.cwd(), "status.json");
+
+export async function accountState(): Promise<Record<string, AccountState>> {
+  try {
+    const parsed = JSON.parse(await readFile(STATUS, "utf8")) as Record<string, AccountState>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function setAccountState(
+  key: string,
+  state: Omit<AccountState, "checked">,
+): Promise<void> {
+  const all = await accountState();
+  all[key] = { ...state, checked: new Date().toISOString() };
+  await writeFile(STATUS, `${JSON.stringify(all, null, 2)}\n`).catch(() => {});
+}
