@@ -41,8 +41,7 @@ import type {
  * the same source the marketing screens are rebuilt from: paper #f5f2eb,
  * incoming bubble white with a 9px radius squared off to 2px at the corner it
  * points from, timestamps #7d8a80, actionable text #007AFF, chat furniture on
- * #f6f6f6. The wallpaper is drawn rather than exported, because the doodles
- * are Meta's artwork; see lib/wallpaper.ts.
+ * #f6f6f6. The wallpaper is the kit's own export; see lib/wallpaper.ts.
  *
  * Text goes through `toHtml`, which escapes before it formats, so a sample
  * value pulled off a WABA cannot put markup on the page.
@@ -74,8 +73,8 @@ export function Preview({
     <div className={cn("overflow-hidden rounded-xl border", className)}>
       {chrome ? <Thread name={business} /> : null}
       <div
-        className="bg-[#f5f2eb] p-3 dark:bg-[#0b141a]"
-        style={{ backgroundImage: WALLPAPER, backgroundSize: "300px" }}
+        className="bg-[#f5f2eb] bg-top bg-no-repeat p-3 dark:bg-[#0b141a]"
+        style={{ backgroundImage: WALLPAPER, backgroundSize: "100% auto" }}
         dir={rtl ? "rtl" : "ltr"}
       >
         <div className="mx-auto w-full max-w-[340px] space-y-1.5">

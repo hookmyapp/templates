@@ -81,6 +81,10 @@ const result = validate(template);
 if (!result.ok) throw new Error(result.errors.map((issue) => issue.message).join("\n"));
 ```
 
+## Credits
+
+The chat surface is built from the [WhatsApp UI Kit (iOS)](https://www.figma.com/design/GN3xgOrjaoKpO1EjF7gXJI/WhatsApp-UI-Kit--iOS---Community-) Figma community file: the colours and the geometry are sampled from it, and `public/wa-wallpaper.webp` is its wallpaper export, resized. WhatsApp and the doodle wallpaper are trademarks and artwork of Meta, used here to show what a message will look like.
+
 ## Licence
 
-MIT. The rules are read from Meta's own documentation and from what its API actually rejects, which is not always the same thing. When you meet a code we do not know, add it to `lib/core/decode.ts` and the next person will not have to work it out.
+MIT, for the code. The rules are read from Meta's own documentation and from what its API actually rejects, which is not always the same thing. When you meet a code we do not know, add it to `lib/core/decode.ts` and the next person will not have to work it out.
