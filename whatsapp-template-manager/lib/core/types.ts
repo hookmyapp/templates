@@ -35,7 +35,7 @@ export interface HeaderComponent {
 
 export interface BodyComponent {
   type: "BODY";
-  /** Omitted for an AUTHENTICATION body — Meta writes that text itself. */
+  /** Omitted for an AUTHENTICATION body, because Meta writes that text itself. */
   text?: string;
   /** AUTHENTICATION only: appends "For your security, do not share this code." */
   add_security_recommendation?: boolean;
@@ -48,7 +48,7 @@ export interface BodyComponent {
 
 export interface FooterComponent {
   type: "FOOTER";
-  /** Omitted for an AUTHENTICATION footer — the expiry line is generated. */
+  /** Omitted for an AUTHENTICATION footer, because the expiry line is generated. */
   text?: string;
   /** AUTHENTICATION only: 1-90. Renders "Expires in N minutes." */
   code_expiration_minutes?: number;

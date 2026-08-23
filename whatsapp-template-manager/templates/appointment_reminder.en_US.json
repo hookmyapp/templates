@@ -1,0 +1,41 @@
+{
+  "name": "appointment_reminder",
+  "language": "en_US",
+  "category": "UTILITY",
+  "parameter_format": "NAMED",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hi {{name}}, your appointment is on {{date}} at {{time}}. Reply CHANGE if that no longer works.",
+      "example": {
+        "body_text_named_params": [
+          {
+            "param_name": "name",
+            "example": "Sam"
+          },
+          {
+            "param_name": "date",
+            "example": "Tuesday 4 March"
+          },
+          {
+            "param_name": "time",
+            "example": "10:30"
+          }
+        ]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "QUICK_REPLY",
+          "text": "Confirm"
+        },
+        {
+          "type": "QUICK_REPLY",
+          "text": "Reschedule"
+        }
+      ]
+    }
+  ]
+}

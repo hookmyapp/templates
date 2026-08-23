@@ -6,8 +6,8 @@ import { validate, type Issue } from "./validate";
  *
  * A template comes back as `REJECTED` with a one-word reason, or a send fails
  * with a five-digit code and a sentence written for nobody. This turns either
- * one into what actually went wrong, what to change, and — when the template
- * is at hand — which field to change it in.
+ * one into what actually went wrong, what to change, and, when the template is
+ * at hand, which field to change it in.
  *
  * The table is a starting point. Add to it as you meet new codes: each entry
  * is data, and the matcher is the only code.

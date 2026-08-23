@@ -1,0 +1,85 @@
+{
+  "name": "product_carousel",
+  "language": "en_US",
+  "category": "MARKETING",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, here is what came in this week. Swipe to see the rest.",
+      "example": {
+        "body_text": [
+          [
+            "Sam"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "CAROUSEL",
+      "cards": [
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://example.com/one.jpg"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "The first one, back in stock and going quickly."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "URL",
+                  "text": "See it",
+                  "url": "https://example.com/p/one"
+                },
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Save for later"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "components": [
+            {
+              "type": "HEADER",
+              "format": "IMAGE",
+              "example": {
+                "header_handle": [
+                  "https://example.com/two.jpg"
+                ]
+              }
+            },
+            {
+              "type": "BODY",
+              "text": "The second one, new this week and made to order."
+            },
+            {
+              "type": "BUTTONS",
+              "buttons": [
+                {
+                  "type": "URL",
+                  "text": "See it",
+                  "url": "https://example.com/p/two"
+                },
+                {
+                  "type": "QUICK_REPLY",
+                  "text": "Save for later"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
