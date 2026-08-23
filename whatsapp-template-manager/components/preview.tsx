@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import {
   BadgeCheck,
+  Camera,
   ChevronLeft,
   Clock,
   Copy,
@@ -11,12 +12,16 @@ import {
   FileText,
   Image as ImageIcon,
   MapPin,
+  Mic,
   Phone,
+  Plus,
   Reply,
+  Sticker,
   ShoppingBag,
   Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WALLPAPER } from "@/lib/wallpaper";
 import { RTL, bodySamples, fill, headerSamples, toHtml } from "@/lib/core";
 import type {
   BodyComponent,
@@ -33,11 +38,11 @@ import type {
  * The message as WhatsApp draws it.
  *
  * The colours and the geometry are sampled from the WhatsApp UI Kit (iOS),
- * the same source the marketing screens are rebuilt from: chat #EFE7DE,
+ * the same source the marketing screens are rebuilt from: paper #f5f2eb,
  * incoming bubble white with a 9px radius squared off to 2px at the corner it
- * points from, timestamps #7d8a80, actionable text #007AFF. The wallpaper is
- * drawn here rather than exported, so nothing in this repo comes out of a
- * community file.
+ * points from, timestamps #7d8a80, actionable text #007AFF, chat furniture on
+ * #f6f6f6. The wallpaper is drawn rather than exported, because the doodles
+ * are Meta's artwork; see lib/wallpaper.ts.
  *
  * Text goes through `toHtml`, which escapes before it formats, so a sample
  * value pulled off a WABA cannot put markup on the page.
@@ -69,11 +74,18 @@ export function Preview({
     <div className={cn("overflow-hidden rounded-xl border", className)}>
       {chrome ? <Thread name={business} /> : null}
       <div
-        className="bg-[#efe7de] p-3 dark:bg-[#0b141a]"
-        style={{ backgroundImage: WALLPAPER, backgroundSize: "260px" }}
+        className="bg-[#f5f2eb] p-3 dark:bg-[#0b141a]"
+        style={{ backgroundImage: WALLPAPER, backgroundSize: "300px" }}
         dir={rtl ? "rtl" : "ltr"}
       >
         <div className="mx-auto w-full max-w-[340px] space-y-1.5">
+          {chrome ? (
+            <div className="pb-1 text-center">
+              <span className="rounded-lg bg-[#e1d8cd]/90 px-2.5 py-1 text-[11px] font-medium text-[#5c5750]">
+                Today
+              </span>
+            </div>
+          ) : null}
         <Bubble>
           <Header header={header} />
           {offer ? <Offer offer={offer} /> : null}
@@ -85,27 +97,24 @@ export function Preview({
           {carousel ? <Carousel carousel={carousel} /> : null}
         </div>
       </div>
+      {chrome ? <Composer /> : null}
     </div>
   );
 }
 
-/**
- * The doodle wallpaper, drawn rather than exported. A few faint outlines at
- * the density the real one sits at, which is all the eye reads at this size.
- */
-const WALLPAPER = `url("data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" fill="none" stroke="#000" stroke-opacity=".045" stroke-width="1.6">
-    <path d="M18 30h26a4 4 0 014 4v14a4 4 0 01-4 4H30l-8 7v-7h-4a4 4 0 01-4-4V34a4 4 0 014-4z"/>
-    <circle cx="112" cy="42" r="11"/><path d="M112 36v7l5 3"/>
-    <path d="M186 28l7 14 15 2-11 10 3 15-14-7-14 7 3-15-11-10 15-2z"/>
-    <path d="M46 122c0 9 7 16 16 16s16-7 16-16"/><path d="M62 138v12"/><path d="M54 150h16"/>
-    <rect x="128" y="112" width="30" height="38" rx="4"/><path d="M136 122h14M136 130h14M136 138h8"/>
-    <path d="M212 116l12 12-12 12-12-12z"/>
-    <path d="M24 202a12 12 0 1124 0 12 12 0 01-24 0z"/><path d="M36 190v-8"/>
-    <path d="M96 196h28a4 4 0 014 4v16a4 4 0 01-4 4h-10l-6 6v-6h-12a4 4 0 01-4-4v-16a4 4 0 014-4z"/>
-    <path d="M188 200l10 18h-20z"/><path d="M188 224v6"/>
-  </svg>`,
-)}")`;
+/** The bar at the bottom of the thread, so the message sits in a screen. */
+function Composer() {
+  return (
+    <div className="flex items-center gap-2.5 border-t border-[#d8d8d8] bg-[#f6f6f6] px-3 py-2 dark:border-[#222d34] dark:bg-[#202c33]">
+      <Plus className="size-4 shrink-0 text-[#007aff]" />
+      <span className="flex h-7 flex-1 items-center justify-end gap-2 rounded-full border border-[#ddd] bg-white px-2.5 dark:border-[#2a3942] dark:bg-[#2a3942]">
+        <Sticker className="size-3.5 text-[#8a8f96]" />
+      </span>
+      <Camera className="size-4 shrink-0 text-[#007aff]" />
+      <Mic className="size-4 shrink-0 text-[#007aff]" />
+    </div>
+  );
+}
 
 /** The thread the message would arrive in, so the bubble is not floating. */
 function Thread({ name }: { name: string }) {
@@ -130,9 +139,9 @@ function Thread({ name }: { name: string }) {
 
 function Bubble({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative rounded-[9px] rounded-tl-[2px] bg-white px-2 pb-1.5 pt-2 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33] dark:text-[#e9edef]">
+    <div className="relative rounded-[9px] rounded-tl-[2px] bg-white px-2 pb-4 pt-2 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_1px_rgba(0,0,0,0.11)] dark:bg-[#202c33] dark:text-[#e9edef]">
       {children}
-      <span className="float-right ml-2 mt-1 text-[11px] leading-none text-[#7d8a80] dark:text-[#8696a0]">
+      <span className="absolute bottom-1 right-2 text-[11px] leading-none text-[#7d8a80] dark:text-[#8696a0]">
         10:24
       </span>
     </div>
