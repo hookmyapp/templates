@@ -25,13 +25,13 @@ Rules that catch people out, and that you will not guess:
 - An authentication body has no text. Meta writes the wording, and the template only chooses the security line, the expiry and the OTP button.
 - Every card in a carousel has to be built the same way as the first: same components, same media type, same buttons in the same order.
 
-## Notes left for you
+## Feedback left for you
 
-`comments.json` is an inbox. Each entry is a request from whoever was looking at a template:
+`feedback.json` is an inbox. Each entry is a request from whoever was looking at a template:
 
 ```json
 {
-  "id": "c_foyf6u",
+  "id": "f_foyf6u",
   "template": "order_update.en_US",
   "quote": "Hi Sam, order A-1024 is now out for delivery.",
   "body": "Too formal. Say on its way rather than out for delivery.",
@@ -42,9 +42,9 @@ Rules that catch people out, and that you will not guess:
 
 `quote` is what was highlighted on the page when the note was written, so it says which line is meant. `status` is `open` until it is dealt with.
 
-When asked to work through the notes:
+When asked to work through the feedback:
 
-1. Read `comments.json` and take the entries whose `status` is `open`.
+1. Read `feedback.json` and take the entries whose `status` is `open`.
 2. Change the template file the note names. Nothing else.
 3. Run `npm run check`.
 4. Set that entry's `status` to `"done"` and add what you did:

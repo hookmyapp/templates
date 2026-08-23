@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { addComment, comments, writable } from "@/lib/store";
+import { addFeedback, feedback, writable } from "@/lib/store";
 
 export async function GET() {
-  return NextResponse.json({ comments: await comments() });
+  return NextResponse.json({ feedback: await feedback() });
 }
 
 export async function POST(request: Request) {
   if (!(await writable())) {
     return NextResponse.json(
-      { error: "Notes are written to comments.json, and this copy cannot write to disk." },
+      { error: "Feedback is written to feedback.json, and this copy cannot write to disk." },
       { status: 409 },
     );
   }
@@ -16,5 +16,5 @@ export async function POST(request: Request) {
   if (!body?.template || !body?.body?.trim()) {
     return NextResponse.json({ error: "A note needs a template and something to say." }, { status: 400 });
   }
-  return NextResponse.json(await addComment(body));
+  return NextResponse.json(await addFeedback(body));
 }

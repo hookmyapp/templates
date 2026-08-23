@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CircleAlert, CircleCheck, Download, MessageSquare, Plus, TriangleAlert } from "lucide-react";
 import { STARTERS, keyOf, toPlain, validate, type Template } from "@/lib/core";
-import type { Comment } from "@/lib/store";
+import type { Feedback } from "@/lib/store";
 import { Preview } from "@/components/preview";
 import { Decoder } from "@/components/decoder";
+import { FeedbackButton, FeedbackPanel, openFeedback } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,24 +29,42 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: "all", label: "All" },
   { id: "clean", label: "Ready" },
   { id: "problems", label: "Needs work" },
-  { id: "notes", label: "Has notes" },
+  { id: "notes", label: "Has feedback" },
 ];
+
+/** Anything else in the URL, including nothing, means show everything. */
+function asFilter(value: string | null): Filter {
+  return FILTERS.some((entry) => entry.id === value) ? (value as Filter) : "all";
+}
 
 export function Gallery({
   templates,
-  notes,
+  feedback,
   writable,
   connected,
 }: {
   templates: Template[];
-  notes: Comment[];
+  feedback: Feedback[];
   writable: boolean;
   connected: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const params = useSearchParams();
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
+  const [filter, setFilter] = useState<Filter>(() => asFilter(params.get("show")));
   const [pulling, setPulling] = useState(false);
   const router = useRouter();
+
+  // The search and the filter live in the URL, so a refresh keeps them and the
+  // view can be sent to someone. This writes the address directly rather than
+  // routing: the filtering is done here in the browser, and asking the router
+  // for a new URL would fetch the page again on every keystroke.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (query) next.set("q", query);
+    if (filter !== "all") next.set("show", filter);
+    const search = next.toString();
+    window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
+  }, [query, filter]);
 
   const rows = useMemo(
     () =>
@@ -57,13 +76,13 @@ export function Gallery({
           key,
           template,
           result,
-          open: notes.filter((note) => note.template === key && note.status === "open").length,
+          open: feedback.filter((note) => note.template === key && note.status === "open").length,
           haystack: [key, template.category, body && "text" in body ? body.text : ""]
             .join(" ")
             .toLowerCase(),
         };
       }),
-    [templates, notes],
+    [templates, feedback],
   );
 
   const shown = rows.filter((row) => {
@@ -107,6 +126,7 @@ export function Gallery({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <FeedbackButton feedback={feedback} />
           <Decoder />
           {connected ? (
             <Button variant="outline" onClick={pull} disabled={pulling}>
@@ -118,23 +138,27 @@ export function Gallery({
         </div>
       </header>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by name, category or wording"
-          className="max-w-sm"
+          className="w-full max-w-sm"
         />
-        <div className="flex gap-1">
+        <div className="bg-muted flex shrink-0 gap-0.5 rounded-lg p-0.5">
           {FILTERS.map((entry) => (
-            <Button
+            <button
               key={entry.id}
-              size="sm"
-              variant={filter === entry.id ? "default" : "ghost"}
               onClick={() => setFilter(entry.id)}
+              className={cn(
+                "rounded-[7px] px-3 py-1.5 text-xs font-medium transition-colors",
+                filter === entry.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
               {entry.label}
-            </Button>
+            </button>
           ))}
         </div>
       </div>
@@ -149,22 +173,30 @@ export function Gallery({
             <Link
               key={row.key}
               href={`/t/${row.key}`}
-              className="hover:border-foreground/20 group rounded-xl border p-3 transition-colors"
+              onContextMenu={(event) => {
+                event.preventDefault();
+                openFeedback(row.key);
+              }}
+              className="hover:border-foreground/25 flex flex-col overflow-hidden rounded-xl border transition-colors"
             >
-              <div className="mb-2.5 flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-2.5">
                 <Status result={row.result} />
                 <code className="truncate text-xs font-medium">{row.template.name}</code>
                 <Badge variant="outline" className="ml-auto shrink-0 text-[10px] uppercase">
                   {row.template.language}
                 </Badge>
               </div>
-              <Preview template={row.template} />
-              <div className="text-muted-foreground mt-2.5 flex items-center gap-3 text-xs">
-                <span>{row.template.category.toLowerCase()}</span>
+              <Preview
+                template={row.template}
+                fade
+                className="h-[236px] rounded-none border-x-0 border-y"
+              />
+              <div className="text-muted-foreground flex items-center gap-3 px-3 py-2.5 text-xs">
+                <span className="capitalize">{row.template.category.toLowerCase()}</span>
                 {row.open > 0 ? (
                   <span className="flex items-center gap-1">
                     <MessageSquare className="size-3" />
-                    {row.open} note{row.open === 1 ? "" : "s"}
+                    {row.open} open
                   </span>
                 ) : null}
               </div>
@@ -172,6 +204,12 @@ export function Gallery({
           ))}
         </div>
       )}
+
+      <FeedbackPanel
+        feedback={feedback}
+        templates={rows.map((row) => row.key)}
+        writable={writable}
+      />
     </main>
   );
 }

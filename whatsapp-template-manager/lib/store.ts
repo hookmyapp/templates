@@ -16,7 +16,7 @@ import { keyOf, type Template } from "./core";
  */
 
 const DIR = path.join(process.cwd(), "templates");
-const COMMENTS = path.join(process.cwd(), "comments.json");
+const FILE = path.join(process.cwd(), "feedback.json");
 
 export { keyOf };
 
@@ -86,16 +86,16 @@ export async function writable(): Promise<boolean> {
   }
 }
 
-/* ---------------------------------------------------------------- comments */
+/* ---------------------------------------------------------------- feedback */
 
 /**
  * A note left on a template, for the agent to act on.
  *
- * `path` is the same dotted path the validator uses, so a comment on
+ * `path` is the same dotted path the validator uses, so a note on
  * `components.1.text` and an error on `components.1.text` point at the same
- * field, and the agent does not have to guess which sentence you meant.
+ * field, and the agent does not have to guess which sentence was meant.
  */
-export interface Comment {
+export interface Feedback {
   id: string;
   /** Template key, e.g. `order_update.en_US`. */
   template: string;
@@ -111,41 +111,41 @@ export interface Comment {
   answered?: { at: string; note: string };
 }
 
-export async function comments(): Promise<Comment[]> {
+export async function feedback(): Promise<Feedback[]> {
   try {
-    const parsed = JSON.parse(await readFile(COMMENTS, "utf8")) as Comment[];
+    const parsed = JSON.parse(await readFile(FILE, "utf8")) as Feedback[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-async function saveComments(all: Comment[]): Promise<void> {
-  await writeFile(COMMENTS, `${JSON.stringify(all, null, 2)}\n`);
+async function save(all: Feedback[]): Promise<void> {
+  await writeFile(FILE, `${JSON.stringify(all, null, 2)}\n`);
 }
 
-export async function addComment(
-  comment: Omit<Comment, "id" | "created" | "status">,
-): Promise<Comment> {
-  const created: Comment = {
-    ...comment,
-    id: `c_${Math.random().toString(36).slice(2, 8)}`,
+export async function addFeedback(
+  note: Omit<Feedback, "id" | "created" | "status">,
+): Promise<Feedback> {
+  const created: Feedback = {
+    ...note,
+    id: `f_${Math.random().toString(36).slice(2, 8)}`,
     status: "open",
     created: new Date().toISOString(),
   };
-  await saveComments([...(await comments()), created]);
+  await save([...(await feedback()), created]);
   return created;
 }
 
-export async function updateComment(id: string, patch: Partial<Comment>): Promise<Comment | null> {
-  const all = await comments();
-  const found = all.find((comment) => comment.id === id);
+export async function updateFeedback(id: string, patch: Partial<Feedback>): Promise<Feedback | null> {
+  const all = await feedback();
+  const found = all.find((note) => note.id === id);
   if (!found) return null;
   Object.assign(found, patch, { id: found.id });
-  await saveComments(all);
+  await save(all);
   return found;
 }
 
-export async function deleteComment(id: string): Promise<void> {
-  await saveComments((await comments()).filter((comment) => comment.id !== id));
+export async function deleteFeedback(id: string): Promise<void> {
+  await save((await feedback()).filter((note) => note.id !== id));
 }

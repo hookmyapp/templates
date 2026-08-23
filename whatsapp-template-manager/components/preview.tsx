@@ -50,12 +50,19 @@ export function Preview({
   template,
   className,
   chrome = false,
+  fade = false,
   business = "Your business",
 }: {
   template: Template;
   className?: string;
   /** Draw the thread around the message: header bar, name, verified tick. */
   chrome?: boolean;
+  /**
+   * Fade the bottom edge. For a preview with a height set from outside, where
+   * a long message is cut off and the cut should read as a thread carrying on
+   * rather than as text that failed to render.
+   */
+  fade?: boolean;
   business?: string;
 }) {
   const find = <T,>(type: string) =>
@@ -70,10 +77,10 @@ export function Preview({
   const rtl = RTL.has(template.language.split("_")[0]);
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border", className)}>
+    <div className={cn("relative flex flex-col overflow-hidden rounded-xl border", className)}>
       {chrome ? <Thread name={business} /> : null}
       <div
-        className="bg-[#f5f2eb] bg-top bg-no-repeat p-3 dark:bg-[#0b141a]"
+        className="flex-1 bg-[#f5f2eb] bg-top bg-no-repeat p-3 dark:bg-[#0b141a]"
         style={{ backgroundImage: WALLPAPER, backgroundSize: "100% auto" }}
         dir={rtl ? "rtl" : "ltr"}
       >
@@ -97,6 +104,12 @@ export function Preview({
         </div>
       </div>
       {chrome ? <Composer /> : null}
+      {fade ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#f5f2eb] dark:to-[#0b141a]"
+        />
+      ) : null}
     </div>
   );
 }

@@ -15,11 +15,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { keyOf, sendValues, validate, type Issue, type Template } from "@/lib/core";
-import type { Comment } from "@/lib/store";
+import type { Feedback } from "@/lib/store";
 import { Preview } from "@/components/preview";
 import { Editor } from "@/components/editor";
 import { Decoder } from "@/components/decoder";
-import { Notes } from "@/components/notes";
+import { FeedbackButton, FeedbackPanel } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,13 +28,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function Workbench({
   initial,
-  notes,
+  feedback,
+  templates,
   writable,
   connected,
   canSend,
 }: {
   initial: Template;
-  notes: Comment[];
+  feedback: Feedback[];
+  templates: string[];
   writable: boolean;
   connected: boolean;
   canSend: boolean;
@@ -112,7 +114,7 @@ export function Workbench({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-8">
+    <main className="mx-auto max-w-6xl px-6 py-10">
       <header className="mb-6 flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/" />}>
           <ArrowLeft />
@@ -122,6 +124,7 @@ export function Workbench({
         <Summary result={result} />
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <FeedbackButton feedback={feedback} />
           <Decoder template={template} initial={rejection} label="Read a rejection" />
           <Button
             variant="ghost"
@@ -155,7 +158,7 @@ export function Workbench({
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_352px]">
         <Editor template={template} issues={result.issues} onChange={setTemplate} />
 
         <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">
@@ -171,14 +174,6 @@ export function Workbench({
                   </Badge>
                 ) : null}
               </TabsTrigger>
-              <TabsTrigger value="notes">
-                Notes
-                {notes.filter((note) => note.status === "open").length ? (
-                  <Badge variant="outline" className="ml-1.5 text-[10px]">
-                    {notes.filter((note) => note.status === "open").length}
-                  </Badge>
-                ) : null}
-              </TabsTrigger>
               <TabsTrigger value="send" disabled={!canSend}>
                 Send
               </TabsTrigger>
@@ -187,15 +182,19 @@ export function Workbench({
             <TabsContent value="checks">
               <Checks result={result} />
             </TabsContent>
-            <TabsContent value="notes">
-              <Notes templateKey={savedKey} notes={notes} writable={writable} />
-            </TabsContent>
             <TabsContent value="send">
               <TestSend template={template} />
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      <FeedbackPanel
+        feedback={feedback}
+        templates={templates}
+        writable={writable}
+        current={savedKey}
+      />
     </main>
   );
 }

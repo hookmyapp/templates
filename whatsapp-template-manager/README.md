@@ -14,7 +14,7 @@ Meta rejects templates for rules that only appear on the way out: a variable at 
 
 **Talks to your account.** Read every template off a WhatsApp Business account, edit one, submit it back. Then send it to your own phone and look at it, because a preview is a drawing.
 
-**Takes notes for an agent.** Highlight anything, write what should change, and it lands in `comments.json`. Claude or Codex reads that file, makes the change, and writes back what it did. [AGENTS.md](./AGENTS.md) is the protocol.
+**Takes feedback for an agent.** Right-click a template, or highlight anything and write what should change. It lands in `feedback.json`. Claude or Codex reads that file, makes the change, and writes back what it did. [AGENTS.md](./AGENTS.md) is the protocol.
 
 Everything Meta currently supports is modelled: authentication with one-tap and zero-tap codes, carousels, limited time offers, flow and catalog buttons, and named parameters as well as numbered ones.
 
@@ -70,7 +70,7 @@ The templates are files, and a deployment has no writable disk, so a deployed co
 | `lib/store.ts` | Templates and notes on disk |
 | `components/preview.tsx` | The message as WhatsApp draws it |
 | `templates/` | Your templates, one JSON file each |
-| `comments.json` | Notes waiting for an agent |
+| `feedback.json` | Feedback waiting for an agent |
 
 `lib/core` is worth knowing about on its own. Import it in a script, a test or a deployment step and validate a template with no browser in sight:
 
