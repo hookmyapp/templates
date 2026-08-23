@@ -3,9 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CircleAlert, CircleCheck, Download, MessageSquare, Plus, TriangleAlert } from "lucide-react";
-import { STARTERS, keyOf, toPlain, validate, type Template } from "@/lib/core";
-import type { Feedback } from "@/lib/store";
+import { Download, MessageSquare, Plus } from "lucide-react";
+import { toast } from "sonner";
+import {
+  STARTERS,
+  TONE,
+  keyOf,
+  stageOf,
+  toPlain,
+  validate,
+  type Stage,
+  type Template,
+} from "@/lib/core";
+import type { AccountState, Feedback } from "@/lib/store";
 import { Preview } from "@/components/preview";
 import { Decoder } from "@/components/decoder";
 import { FeedbackButton, FeedbackPanel, openFeedback } from "@/components/feedback";
@@ -20,51 +30,67 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type Filter = "all" | "clean" | "problems" | "notes";
-
-const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "clean", label: "Ready" },
-  { id: "problems", label: "Needs work" },
-  { id: "notes", label: "Has feedback" },
+/**
+ * The filters, in the order a template moves through them. "Rejected" also
+ * covers paused and disabled, because all three mean the same thing to whoever
+ * is looking: Meta has a problem with this one.
+ */
+const FILTERS: Array<{ id: string; label: string; match: (stage: Stage) => boolean }> = [
+  { id: "all", label: "All", match: () => true },
+  { id: "problems", label: "Needs work", match: (stage) => stage === "needs-work" },
+  { id: "ready", label: "Ready", match: (stage) => stage === "ready" },
+  {
+    id: "pending",
+    label: "In review",
+    match: (stage) => stage === "pending" || stage === "appealing",
+  },
+  { id: "approved", label: "Approved", match: (stage) => stage === "approved" },
+  {
+    id: "rejected",
+    label: "Rejected",
+    match: (stage) => stage === "rejected" || stage === "paused" || stage === "disabled",
+  },
 ];
 
-/** Anything else in the URL, including nothing, means show everything. */
-function asFilter(value: string | null): Filter {
-  return FILTERS.some((entry) => entry.id === value) ? (value as Filter) : "all";
+function asFilter(value: string | null): string {
+  return FILTERS.some((entry) => entry.id === value) ? (value as string) : "all";
 }
 
 export function Gallery({
   templates,
   feedback,
+  account,
   writable,
   connected,
 }: {
   templates: Template[];
   feedback: Feedback[];
+  /** What the WhatsApp Business account last said, keyed by template. */
+  account: Record<string, AccountState>;
   writable: boolean;
   connected: boolean;
 }) {
   const params = useSearchParams();
   const [query, setQuery] = useState(() => params.get("q") ?? "");
-  const [filter, setFilter] = useState<Filter>(() => asFilter(params.get("show")));
+  const [filter, setFilter] = useState(() => asFilter(params.get("show")));
+  const [onlyFeedback, setOnlyFeedback] = useState(() => params.get("feedback") === "1");
   const [pulling, setPulling] = useState(false);
   const router = useRouter();
 
-  // The search and the filter live in the URL, so a refresh keeps them and the
-  // view can be sent to someone. This writes the address directly rather than
-  // routing: the filtering is done here in the browser, and asking the router
-  // for a new URL would fetch the page again on every keystroke.
+  // The search and the filters live in the URL, so a refresh keeps them and
+  // the view can be sent to someone. This writes the address directly rather
+  // than routing: the filtering is done here in the browser, and asking the
+  // router for a new URL would fetch the page again on every keystroke.
   useEffect(() => {
     const next = new URLSearchParams();
     if (query) next.set("q", query);
     if (filter !== "all") next.set("show", filter);
+    if (onlyFeedback) next.set("feedback", "1");
     const search = next.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
-  }, [query, filter]);
+  }, [query, filter, onlyFeedback]);
 
   const rows = useMemo(
     () =>
@@ -75,22 +101,21 @@ export function Gallery({
         return {
           key,
           template,
-          result,
+          stage: stageOf(result, account[key]?.status),
           open: feedback.filter((note) => note.template === key && note.status === "open").length,
           haystack: [key, template.category, body && "text" in body ? body.text : ""]
             .join(" ")
             .toLowerCase(),
         };
       }),
-    [templates, feedback],
+    [templates, feedback, account],
   );
 
+  const match = FILTERS.find((entry) => entry.id === filter)?.match ?? (() => true);
   const shown = rows.filter((row) => {
     if (query && !row.haystack.includes(query.toLowerCase())) return false;
-    if (filter === "clean") return row.result.ok && row.result.warnings.length === 0;
-    if (filter === "problems") return !row.result.ok || row.result.warnings.length > 0;
-    if (filter === "notes") return row.open > 0;
-    return true;
+    if (onlyFeedback && row.open === 0) return false;
+    return match(row.stage.stage);
   });
 
   async function pull() {
@@ -138,20 +163,20 @@ export function Gallery({
         </div>
       </header>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by name, category or wording"
-          className="w-full max-w-sm"
+          className="w-full max-w-xs"
         />
-        <div className="bg-muted flex shrink-0 gap-0.5 rounded-lg p-0.5">
+        <div className="bg-muted ml-auto flex shrink-0 gap-0.5 rounded-lg p-0.5">
           {FILTERS.map((entry) => (
             <button
               key={entry.id}
               onClick={() => setFilter(entry.id)}
               className={cn(
-                "rounded-[7px] px-3 py-1.5 text-xs font-medium transition-colors",
+                "rounded-[7px] px-2.5 py-1.5 text-xs font-medium transition-colors",
                 filter === entry.id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
@@ -161,12 +186,26 @@ export function Gallery({
             </button>
           ))}
         </div>
+        <Button
+          variant={onlyFeedback ? "default" : "outline"}
+          size="sm"
+          onClick={() => setOnlyFeedback(!onlyFeedback)}
+          title="Only the templates with feedback waiting"
+        >
+          <MessageSquare />
+          Feedback
+        </Button>
       </div>
 
-      {shown.length === 0 ? (
-        <p className="text-muted-foreground py-16 text-center text-sm">
-          Nothing here matches that.
+      {connected ? null : (
+        <p className="text-muted-foreground mb-6 text-xs">
+          Approved and in review come from the account. Until a token is set up, a template is
+          either ready to submit or not.
         </p>
+      )}
+
+      {shown.length === 0 ? (
+        <p className="text-muted-foreground py-16 text-center text-sm">Nothing here matches that.</p>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((row) => (
@@ -180,7 +219,6 @@ export function Gallery({
               className="hover:border-foreground/25 flex flex-col overflow-hidden rounded-xl border transition-colors"
             >
               <div className="flex items-center gap-2 px-3 py-2.5">
-                <Status result={row.result} />
                 <code className="truncate text-xs font-medium">{row.template.name}</code>
                 <Badge variant="outline" className="ml-auto shrink-0 text-[10px] uppercase">
                   {row.template.language}
@@ -191,12 +229,17 @@ export function Gallery({
                 fade
                 className="h-[236px] rounded-none border-x-0 border-y"
               />
-              <div className="text-muted-foreground flex items-center gap-3 px-3 py-2.5 text-xs">
-                <span className="capitalize">{row.template.category.toLowerCase()}</span>
+              <div className="flex items-center gap-3 px-3 py-2.5 text-xs">
+                <span className={cn("font-medium", TONE[row.stage.tone])} title={row.stage.detail}>
+                  {row.stage.label}
+                </span>
+                <span className="text-muted-foreground capitalize">
+                  {row.template.category.toLowerCase()}
+                </span>
                 {row.open > 0 ? (
-                  <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground ml-auto flex items-center gap-1">
                     <MessageSquare className="size-3" />
-                    {row.open} open
+                    {row.open}
                   </span>
                 ) : null}
               </div>
@@ -214,32 +257,15 @@ export function Gallery({
   );
 }
 
-function Status({ result }: { result: ReturnType<typeof validate> }) {
-  if (!result.ok) {
-    return (
-      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
-        <CircleAlert className="size-3.5" />
-        {result.errors.length}
-      </span>
-    );
-  }
-  if (result.warnings.length) {
-    return (
-      <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-500">
-        <TriangleAlert className="size-3.5" />
-        {result.warnings.length}
-      </span>
-    );
-  }
-  return <CircleCheck className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-500" />;
-}
-
 function NewTemplate({ writable }: { writable: boolean }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
   async function create(template: Template) {
-    const response = await fetch("/api/templates", { method: "POST", body: JSON.stringify(template) });
+    const response = await fetch("/api/templates", {
+      method: "POST",
+      body: JSON.stringify(template),
+    });
     const answer = await response.json();
     if (!response.ok) return toast.error(answer.error);
     setOpen(false);
@@ -250,7 +276,14 @@ function NewTemplate({ writable }: { writable: boolean }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button><Plus />New template</Button>} />
+      <DialogTrigger
+        render={
+          <Button>
+            <Plus />
+            New template
+          </Button>
+        }
+      />
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Start from</DialogTitle>
@@ -263,17 +296,17 @@ function NewTemplate({ writable }: { writable: boolean }) {
             <button
               key={starter.id}
               onClick={() => create(structuredClone(starter.template))}
-              className={cn(
-                "hover:border-foreground/30 rounded-lg border p-3 text-left transition-colors",
-              )}
+              className="hover:border-foreground/30 rounded-lg border p-3 text-left transition-colors"
             >
               <div className="text-sm font-medium">{starter.title}</div>
               <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{starter.about}</p>
               <p className="text-muted-foreground/70 mt-2 line-clamp-2 text-xs">
                 {toPlain(
-                  (starter.template.components.find((component) => component.type === "BODY") as
-                    | { text?: string }
-                    | undefined)?.text ?? "",
+                  (
+                    starter.template.components.find((component) => component.type === "BODY") as
+                      | { text?: string }
+                      | undefined
+                  )?.text ?? "",
                 )}
               </p>
             </button>

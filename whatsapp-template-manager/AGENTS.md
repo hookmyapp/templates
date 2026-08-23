@@ -55,6 +55,12 @@ When asked to work through the feedback:
 
 Leave a note `open` if you could not do what it asks, and say why in the same `answered.note`. Silently closing a note is worse than leaving it.
 
+## Statuses
+
+`status.json` is what the WhatsApp Business account last said, keyed the same way as the template files. It is a cache, not a source: it is rewritten by reading the account and by submitting, and it is not part of the template definition. Never hand-edit it to make something look approved, and never copy its fields into a template file.
+
+`lib/core/stage.ts` turns a validation result and an optional account status into the one word shown on screen. The account overrules the checks whenever it has an opinion.
+
 ## Adding a rule
 
 A rule Meta enforces that we do not check yet belongs in `lib/core/validate.ts` with a test beside it in `lib/core/core.test.ts`. Give it an id in the same shape as its neighbours, write the message as a sentence a person would say, and set `path` to the field it is about, because the editor uses that path to put the message under the right input.

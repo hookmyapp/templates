@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Workbench } from "@/components/workbench";
-import { feedback, list, read, writable } from "@/lib/store";
+import { accountState, feedback, list, read, writable } from "@/lib/store";
 import { keyOf } from "@/lib/core";
 import { connection } from "@/lib/waba";
 
@@ -11,17 +11,23 @@ export default async function Page({ params }: { params: Promise<{ key: string }
   const template = await read(key);
   if (!template) notFound();
 
-  const [notes, canWrite, all] = await Promise.all([feedback(), writable(), list()]);
-  const account = connection();
+  const [notes, canWrite, all, account] = await Promise.all([
+    feedback(),
+    writable(),
+    list(),
+    accountState(),
+  ]);
+  const connected = connection();
 
   return (
     <Workbench
       initial={template}
       feedback={notes}
       templates={all.map(keyOf)}
+      state={account[key]}
       writable={canWrite}
-      connected={Boolean(account)}
-      canSend={Boolean(account?.phoneNumberId)}
+      connected={Boolean(connected)}
+      canSend={Boolean(connected?.phoneNumberId)}
     />
   );
 }

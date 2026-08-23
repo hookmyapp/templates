@@ -1,6 +1,6 @@
 import { readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { keyOf, type Template } from "./core";
+import { keyOf, type Template, type TemplateStatus } from "./core";
 
 /**
  * Where the templates live: one JSON file each, in `templates/`.
@@ -148,4 +148,48 @@ export async function updateFeedback(id: string, patch: Partial<Feedback>): Prom
 
 export async function deleteFeedback(id: string): Promise<void> {
   await save((await feedback()).filter((note) => note.id !== id));
+}
+
+/* ------------------------------------------------------------------ account */
+
+/**
+ * What the account last said about a template, kept beside the templates
+ * rather than inside them.
+ *
+ * A template file is a definition: the thing you would submit. Whether it is
+ * approved is not part of that, it is a fact about one WhatsApp Business
+ * account at one moment. Writing it into the template would mean a clone of
+ * this repository carries someone else's review state, and a `git diff` on a
+ * wording change would also show a status that nobody edited.
+ *
+ * Refreshed by reading the account, and by submitting.
+ */
+export interface AccountState {
+  status: TemplateStatus;
+  /** Meta's id for the template. */
+  id?: string;
+  /** Present when Meta rejected it. */
+  rejected_reason?: string;
+  /** When we last heard this. */
+  checked: string;
+}
+
+const STATUS = path.join(process.cwd(), "status.json");
+
+export async function accountState(): Promise<Record<string, AccountState>> {
+  try {
+    const parsed = JSON.parse(await readFile(STATUS, "utf8")) as Record<string, AccountState>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function setAccountState(
+  key: string,
+  state: Omit<AccountState, "checked">,
+): Promise<void> {
+  const all = await accountState();
+  all[key] = { ...state, checked: new Date().toISOString() };
+  await writeFile(STATUS, `${JSON.stringify(all, null, 2)}\n`).catch(() => {});
 }

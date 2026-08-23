@@ -14,8 +14,8 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { keyOf, sendValues, validate, type Issue, type Template } from "@/lib/core";
-import type { Feedback } from "@/lib/store";
+import { TONE, keyOf, sendValues, stageOf, validate, type Issue, type Template } from "@/lib/core";
+import type { AccountState, Feedback } from "@/lib/store";
 import { Preview } from "@/components/preview";
 import { Editor } from "@/components/editor";
 import { Decoder } from "@/components/decoder";
@@ -25,11 +25,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 export function Workbench({
   initial,
   feedback,
   templates,
+  state,
   writable,
   connected,
   canSend,
@@ -37,6 +39,8 @@ export function Workbench({
   initial: Template;
   feedback: Feedback[];
   templates: string[];
+  /** What the account last said about this one, when it has been asked. */
+  state?: AccountState;
   writable: boolean;
   connected: boolean;
   canSend: boolean;
@@ -50,6 +54,7 @@ export function Workbench({
   const key = keyOf(template);
   const savedKey = keyOf(saved);
   const result = validate(template);
+  const stage = stageOf(result, state?.status);
   const dirty = JSON.stringify(template) !== JSON.stringify(saved);
 
   const save = useCallback(async () => {
@@ -105,7 +110,8 @@ export function Workbench({
       toast.error(answer.error);
       return;
     }
-    toast.success(`Submitted. Meta calls it ${answer.id}.`);
+    toast.success(`Submitted for review. Meta calls it ${answer.id}.`);
+    router.refresh();
   }
 
   async function destroy() {
@@ -121,11 +127,15 @@ export function Workbench({
           All templates
         </Button>
         <code className="text-sm font-medium">{key}</code>
-        <Summary result={result} />
+        <Stage stage={stage} />
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <FeedbackButton feedback={feedback} />
-          <Decoder template={template} initial={rejection} label="Read a rejection" />
+          <Decoder
+            template={template}
+            initial={rejection || state?.rejected_reason || ""}
+            label="Read a rejection"
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -138,9 +148,15 @@ export function Workbench({
             Copy JSON
           </Button>
           {connected ? (
-            <Button variant="outline" size="sm" onClick={submit} disabled={!result.ok}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={submit}
+              disabled={!result.ok || stage.stage === "pending"}
+              title={stage.stage === "pending" ? "Already waiting on Meta." : undefined}
+            >
               <Upload />
-              Submit to Meta
+              {stage.stage === "approved" ? "Submit the change" : "File for approval"}
             </Button>
           ) : null}
           {writable ? (
@@ -199,28 +215,14 @@ export function Workbench({
   );
 }
 
-function Summary({ result }: { result: ReturnType<typeof validate> }) {
-  if (!result.ok) {
-    return (
-      <Badge variant="outline" className="gap-1 text-red-600 dark:text-red-400">
-        <CircleAlert className="size-3" />
-        {result.errors.length} to fix
-      </Badge>
-    );
-  }
-  if (result.warnings.length) {
-    return (
-      <Badge variant="outline" className="gap-1 text-amber-600 dark:text-amber-500">
-        <TriangleAlert className="size-3" />
-        {result.warnings.length} to look at
-      </Badge>
-    );
-  }
+function Stage({ stage }: { stage: ReturnType<typeof stageOf> }) {
   return (
-    <Badge variant="outline" className="gap-1 text-emerald-600 dark:text-emerald-500">
-      <CircleCheck className="size-3" />
-      Ready
-    </Badge>
+    <span className="flex items-center gap-2">
+      <Badge variant="outline" className={cn("font-medium", TONE[stage.tone])}>
+        {stage.label}
+      </Badge>
+      <span className="text-muted-foreground hidden text-xs lg:inline">{stage.detail}</span>
+    </span>
   );
 }
 

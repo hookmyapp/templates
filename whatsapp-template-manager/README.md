@@ -6,6 +6,8 @@ Meta rejects templates for rules that only appear on the way out: a variable at 
 
 ## What it does
 
+**Says where each template stands.** Needs work, ready to submit, in review, approved, rejected, paused. The first two come from the checks below. The rest come from the account, and the account wins: a template Meta approved is approved even if a later edit here would not pass.
+
 **Checks before you submit.** Every rule Meta applies, with a plain sentence about what is wrong and what to do, pointing at the field it is in. Errors block a submission, warnings are the things that get approved and then bite.
 
 **Draws the message properly.** Not a text box with a green border. The colours and the geometry come from the WhatsApp UI kit, so the bubble, the buttons and the carousel are the size they will really be. Authentication templates draw the wording Meta writes for you.
@@ -39,6 +41,8 @@ cp .env.example .env.local
 | `WABA_ID` | The WhatsApp Business Account id |
 | `PHONE_NUMBER_ID` | Only to send a test message |
 
+Reading the account writes what it says into `status.json`, which is what puts Approved and In review on the cards. Without a token the app still works; a template is then either ready to submit or not.
+
 An `hmat_` token goes through the HookMyApp gateway, which holds the Meta credentials for you. A Meta token goes straight to Graph. The app works out which from the token and does not need telling.
 
 `npm install` also puts the HookMyApp CLI in this project, so there is nothing to install globally:
@@ -71,6 +75,7 @@ The templates are files, and a deployment has no writable disk, so a deployed co
 | `components/preview.tsx` | The message as WhatsApp draws it |
 | `templates/` | Your templates, one JSON file each |
 | `feedback.json` | Feedback waiting for an agent |
+| `status.json` | What the account last said about each template |
 
 `lib/core` is worth knowing about on its own. Import it in a script, a test or a deployment step and validate a template with no browser in sight:
 

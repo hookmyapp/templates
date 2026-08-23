@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { connection, push, WabaError } from "@/lib/waba";
+import { keyOf } from "@/lib/core";
+import { setAccountState } from "@/lib/store";
 import type { Template } from "@/lib/core";
 
 /** Submit a template for review, or update one that already exists. */
@@ -13,7 +15,14 @@ export async function POST(request: Request) {
   }
   const { template, id } = (await request.json()) as { template: Template; id?: string };
   try {
-    return NextResponse.json(await push(account, template, id));
+    const answer = await push(account, template, id);
+    // Anything Meta accepts goes into review, so the list stops calling it
+    // "ready to submit" the moment it has been.
+    await setAccountState(keyOf(template), {
+      status: (answer.status as never) ?? "PENDING",
+      id: answer.id,
+    });
+    return NextResponse.json(answer);
   } catch (error) {
     if (error instanceof WabaError) {
       // The raw answer comes back too, because the rejection reader reads it.

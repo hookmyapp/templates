@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { STARTERS, blank } from "./starters";
 import { validate } from "./validate";
+import { stageOf } from "./stage";
 import { decode } from "./decode";
 import { toHtml } from "./format";
 import { fill, formatOf } from "./variables";
@@ -272,5 +273,36 @@ describe("decoding a rejection", () => {
     const [first] = decode("something we have never seen", template);
     expect(first.certain).toBe(false);
     expect(first.issues?.map((issue) => issue.rule)).toContain("name.characters");
+  });
+});
+
+describe("what stage a template is at", () => {
+  const clean = () => validate(base());
+  const broken = () => {
+    const template = base();
+    template.name = "Not A Name";
+    return validate(template);
+  };
+
+  it("is ready to submit when the checks pass and nothing has been sent", () => {
+    expect(stageOf(clean()).stage).toBe("ready");
+    expect(stageOf(clean()).label).toMatch(/ready/i);
+  });
+
+  it("needs work when a check fails", () => {
+    expect(stageOf(broken()).stage).toBe("needs-work");
+  });
+
+  it("lets the account overrule the checks once it has an opinion", () => {
+    // An approved template is approved even if a later edit would not pass,
+    // because approval is a fact about the account, not about this folder.
+    expect(stageOf(broken(), "APPROVED").stage).toBe("approved");
+    expect(stageOf(clean(), "PENDING").stage).toBe("pending");
+    expect(stageOf(clean(), "REJECTED").stage).toBe("rejected");
+  });
+
+  it("keeps paused and disabled distinct, because only one of them comes back", () => {
+    expect(stageOf(clean(), "PAUSED").label).toBe("Paused");
+    expect(stageOf(clean(), "DISABLED").label).toBe("Disabled");
   });
 });

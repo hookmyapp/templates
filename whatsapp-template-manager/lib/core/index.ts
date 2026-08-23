@@ -10,6 +10,7 @@ export * from "./languages";
 export * from "./variables";
 export * from "./format";
 export * from "./validate";
+export * from "./stage";
 export * from "./decode";
 export * from "./samples";
 export * from "./starters";
