@@ -119,6 +119,16 @@ function Counter({ value, max }: { value: string; max: number }) {
   );
 }
 
+/** MARKETING becomes Marketing, PHONE_NUMBER becomes Phone number. */
+const title = (value: string) =>
+  value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, " ");
+
+const OTP_LABELS: Record<string, string> = {
+  COPY_CODE: "Copy the code",
+  ONE_TAP: "Fill it in with one tap",
+  ZERO_TAP: "Fill it in with no tap",
+};
+
 /** The index of a component in the template, for matching validator paths. */
 const at = (template: Template, type: string) =>
   `components.${template.components.findIndex((component) => component.type === type)}`;
@@ -156,7 +166,7 @@ function Basics({
             onValueChange={(value) => onChange({ ...template, language: value as string })}
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>{(code) => `${LANGUAGES[code as string] ?? code} (${code})`}</SelectValue>
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {Object.entries(LANGUAGES).map(([code, name]) => (
@@ -175,12 +185,12 @@ function Basics({
             onValueChange={(value) => onChange({ ...template, category: value as Category })}
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>{(value) => title(value as string)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {CATEGORIES.map((category) => (
                 <SelectItem key={category} value={category}>
-                  {category.toLowerCase()}
+                  {title(category)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -196,7 +206,9 @@ function Basics({
             }
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>
+                {(value) => (value === "NAMED" ? "Named" : "Numbered")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="POSITIONAL">Numbered, like {"{{1}}"}</SelectItem>
@@ -255,12 +267,12 @@ function Header({
             }
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>{(value) => title(value as string)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {HEADER_FORMATS.map((format) => (
                 <SelectItem key={format} value={format}>
-                  {format.toLowerCase()}
+                  {title(format)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -552,6 +564,7 @@ function Buttons({
   issues: Issue[];
   onChange: (next: Template) => void;
 }) {
+  const named = template.parameter_format === "NAMED";
   const block = get<ButtonsComponent>(template, "BUTTONS");
   const path = at(template, "BUTTONS");
   const buttons = block?.buttons ?? [];
@@ -615,20 +628,11 @@ function Buttons({
             ) : null}
 
             {button.type === "URL" ? (
-              <>
-                <Input
-                  value={button.url}
-                  placeholder="https://example.com/orders/{{1}}"
-                  onChange={(event) => patch(index, { url: event.target.value })}
-                />
-                {tokens(button.url).length ? (
-                  <Input
-                    value={button.example?.[0] ?? ""}
-                    placeholder="The whole address, filled in"
-                    onChange={(event) => patch(index, { example: [event.target.value] })}
-                  />
-                ) : null}
-              </>
+              <UrlFields
+                button={button}
+                named={named}
+                onChange={(fields) => patch(index, fields)}
+              />
             ) : null}
 
             {button.type === "PHONE_NUMBER" ? (
@@ -661,7 +665,7 @@ function Buttons({
                 onValueChange={(value) => patch(index, { otp_type: value })}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(value) => OTP_LABELS[value as string] ?? "Copy the code"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="COPY_CODE">Copy the code</SelectItem>
@@ -677,6 +681,104 @@ function Buttons({
       )}
       <Notes issues={issues} path={path} />
     </Section>
+  );
+}
+
+/**
+ * A URL button, static or dynamic.
+ *
+ * WhatsApp accepts one placeholder in a URL button and only at the very end:
+ * `https://example.com/orders/{{1}}` is fine, `.../{{1}}/status` is refused at
+ * submission with nothing useful to say. So the placeholder is not typed here,
+ * it is pinned to the end of the field, and the address is stored as the
+ * prefix plus that placeholder. The rule cannot be broken by hand.
+ *
+ * The sample is the value the placeholder stands in for, but Meta wants the
+ * whole address it produces, so that is what gets stored, and what is shown
+ * underneath is exactly what will be sent.
+ */
+function UrlFields({
+  button,
+  named,
+  onChange,
+}: {
+  button: ButtonModel & { type: "URL" };
+  named: boolean;
+  onChange: (fields: Record<string, unknown>) => void;
+}) {
+  const token = tokens(button.url)[0] ?? (named ? "url" : "1");
+  const dynamic = tokens(button.url).length > 0;
+  const prefix = button.url.replace(/\{\{[^}]*\}\}\s*$/, "");
+  const placeholder = `{{${token}}}`;
+  // The stored sample is the full address, so the suffix is read back out of it.
+  const sample = (button.example?.[0] ?? "").startsWith(prefix)
+    ? (button.example?.[0] ?? "").slice(prefix.length)
+    : (button.example?.[0] ?? "");
+
+  const setPrefix = (next: string) => {
+    onChange({
+      url: dynamic ? `${next}${placeholder}` : next,
+      ...(dynamic ? { example: sample ? [`${next}${sample}`] : undefined } : {}),
+    });
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <div className="focus-within:border-ring flex flex-1 items-center rounded-lg border pr-1">
+          <Input
+            value={prefix}
+            placeholder="https://example.com/orders/"
+            onChange={(event) => setPrefix(event.target.value)}
+            className="border-0 focus-visible:ring-0"
+          />
+          {dynamic ? (
+            <code className="bg-muted text-muted-foreground shrink-0 rounded px-1.5 py-1 text-xs">
+              {placeholder}
+            </code>
+          ) : null}
+        </div>
+        <Select
+          value={dynamic ? "dynamic" : "static"}
+          onValueChange={(value) =>
+            value === "dynamic"
+              ? onChange({ url: `${prefix}${placeholder}`, example: undefined })
+              : onChange({ url: prefix, example: undefined })
+          }
+        >
+          <SelectTrigger className="shrink-0">
+            <SelectValue>{(value) => (value === "dynamic" ? "Dynamic" : "Static")}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="static">Static</SelectItem>
+            <SelectItem value="dynamic">Dynamic</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {dynamic ? (
+        <>
+          <div className="flex items-center gap-2">
+            <code className="text-muted-foreground w-20 shrink-0 truncate text-xs">
+              {placeholder} =
+            </code>
+            <Input
+              value={sample}
+              placeholder="What it stands in for"
+              onChange={(event) =>
+                onChange({ example: event.target.value ? [`${prefix}${event.target.value}`] : undefined })
+              }
+            />
+          </div>
+          {sample ? (
+            <p className="text-muted-foreground truncate font-mono text-[11px]">
+              {prefix}
+              {sample}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -853,11 +955,11 @@ function Carousel({
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(value) => title(value as string)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="IMAGE">image</SelectItem>
-                <SelectItem value="VIDEO">video</SelectItem>
+                <SelectItem value="IMAGE">Image</SelectItem>
+                <SelectItem value="VIDEO">Video</SelectItem>
               </SelectContent>
             </Select>
 
@@ -900,18 +1002,20 @@ function Carousel({
                   }
                 />
                 {button.type === "URL" ? (
-                  <Input
-                    value={button.url}
-                    placeholder="https://example.com/p/one"
-                    onChange={(event) =>
-                      replace("BUTTONS", {
-                        type: "BUTTONS",
-                        buttons: (buttons?.buttons ?? []).map((existing, i) =>
-                          i === b ? ({ ...existing, url: event.target.value } as ButtonModel) : existing,
-                        ),
-                      })
-                    }
-                  />
+                  <div className="flex-1 space-y-2">
+                    <UrlFields
+                      button={button}
+                      named={template.parameter_format === "NAMED"}
+                      onChange={(fields) =>
+                        replace("BUTTONS", {
+                          type: "BUTTONS",
+                          buttons: (buttons?.buttons ?? []).map((existing, i) =>
+                            i === b ? ({ ...existing, ...fields } as ButtonModel) : existing,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
                 ) : null}
               </div>
             ))}
