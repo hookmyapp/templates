@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CircleAlert,
-  CircleCheck,
   Copy,
   Send,
   Trash2,
