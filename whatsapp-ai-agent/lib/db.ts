@@ -83,7 +83,7 @@ export type Message = {
 const DEFAULT_PROMPT =
   'You answer WhatsApp messages for a small business. Keep replies short, friendly and useful. If you do not know something, say so and offer to pass the question on.';
 
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-5';
+const DEFAULT_MODEL = 'openrouter/free';
 
 let ready: Promise<void> | null = null;
 
@@ -123,6 +123,12 @@ export function init(): Promise<void> {
       insert into settings (id, system_prompt, model)
       values (1, ${DEFAULT_PROMPT}, ${DEFAULT_MODEL})
       on conflict (id) do nothing`;
+    // Repair sandbox settings saved with the real-number endpoint by an earlier version.
+    await sql`
+      update settings
+      set api_base = replace(api_base, 'https://gateway.hookmyapp.com/meta/', 'https://sandbox.hookmyapp.com/')
+      where mode = 'sandbox' and api_base like 'https://gateway.hookmyapp.com/meta/v%'`;
+
   })();
   return ready;
 }
@@ -193,7 +199,8 @@ export async function contacts(query = ''): Promise<ContactRow[]> {
     select distinct on (m.contact_wa_id)
       m.contact_wa_id,
       max(m.created_at) over (partition by m.contact_wa_id) as last_at,
-      coalesce(nullif(m.body, ''), 'Could not answer: ' || m.error, '') as last_body
+      case when m.error is not null then 'Could not answer this message.'
+        else coalesce(m.body, '') end as last_body
     from messages m
     where ${query.trim() === ''}
        or m.contact_wa_id ilike ${like}

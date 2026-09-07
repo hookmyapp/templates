@@ -1,5 +1,8 @@
 'use client';
 
+import { requestJson } from '@/lib/api-client';
+import { errors, publicError } from '@/lib/errors';
+
 import { useEffect, useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,20 +29,14 @@ export function PlaygroundView() {
     setDraft('');
     setBusy(true);
     try {
-      const res = await fetch('/api/playground', {
+      const data = await requestJson('/api/playground', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ history, message }),
-      });
-      const data = await res.json();
-      setTurns((t) => [
-        ...t,
-        res.ok
-          ? { direction: 'out', body: data.reply }
-          : { direction: 'out', body: data.error ?? 'Request failed', error: true },
-      ]);
+      }, errors.reply);
+      setTurns((t) => [...t, { direction: 'out', body: data.reply }]);
     } catch (err) {
-      setTurns((t) => [...t, { direction: 'out', body: String(err), error: true }]);
+      setTurns((t) => [...t, { direction: 'out', body: publicError(err, errors.reply), error: true }]);
     } finally {
       setBusy(false);
     }

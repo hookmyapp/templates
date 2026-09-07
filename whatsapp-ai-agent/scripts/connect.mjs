@@ -102,10 +102,10 @@ if (list.length > 1 && interactive) {
 
 await writeEnv({
   HOOKMYAPP_API_KEY: credential.accessToken,
-  HOOKMYAPP_WORKSPACE_ID: workspace.publicId,
+  HOOKMYAPP_WORKSPACE_ID: workspace.publicId ?? workspace.id,
 });
 
 console.log(`\nSaved to .env.local`);
 console.log(`  HOOKMYAPP_API_KEY      ${credential.accessToken.slice(0, 9)}...`);
-console.log(`  HOOKMYAPP_WORKSPACE_ID ${workspace.publicId}`);
+console.log(`  HOOKMYAPP_WORKSPACE_ID ${workspace.publicId ?? workspace.id}`);
 console.log(`\nRestart the dev server to pick it up.\n`);

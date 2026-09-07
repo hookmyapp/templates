@@ -1,5 +1,8 @@
 'use client';
 
+import { requestJson } from '@/lib/api-client';
+import { errors, publicError } from '@/lib/errors';
+
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Check, Pencil } from 'lucide-react';
@@ -19,16 +22,15 @@ export function SettingsView({ status, onChange }: { status: Status; onChange: (
   const save = async (body: Record<string, string>, done: string) => {
     setBusy(true);
     try {
-      const res = await fetch('/api/settings', {
+      await requestJson('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      }, errors.save);
       toast.success(done);
       onChange();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(publicError(err, errors.save));
     } finally {
       setBusy(false);
     }

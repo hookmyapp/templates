@@ -1,43 +1,37 @@
 'use client';
 
+import { requestJson } from '@/lib/api-client';
+import { errors, publicError } from '@/lib/errors';
+
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Square } from 'lucide-react';
 import type { Status } from '@/components/status';
 
-type Channel = { publicId: string; displayName?: string; phoneNumber?: string };
+type Channel = { publicId: string; displayName?: string; phoneNumber?: string; webhookUrl?: string | null };
 type Tunnel = {
   running: boolean;
+  starting: boolean;
+  detail: string | null;
   target: string | null;
   address: string | null;
   error: string | null;
 };
 type Sandbox = {
   session: { id: string; phone: string; webhookUrl: string | null } | null;
-  bind?: { code: string; phoneNumber?: string };
+  bind?: { code: string; phoneNumber: string; whatsappUrl: string };
   pointsHere?: boolean;
 };
 
-async function del(url: string) {
-  const res = await fetch(url, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Request failed');
-  return res.json();
-}
-
-async function post(url: string, body?: unknown) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Request failed');
-  return data;
-}
+const del = (url: string) => requestJson(url, { method: 'DELETE' }, errors.connect);
+const post = (url: string, body?: unknown) => requestJson(url, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: body ? JSON.stringify(body) : undefined,
+}, errors.connect);
 
 export function ConnectCard({ status, onChange }: { status: Status; onChange: () => void }) {
   const [tab, setTab] = useState<'sandbox' | 'live'>(status.mode);
@@ -45,6 +39,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   const [sandbox, setSandbox] = useState<Sandbox | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [tunnel, setTunnel] = useState<Tunnel | null>(null);
 
@@ -52,8 +47,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   useEffect(() => {
     if (status.reachable || !status.connected) return;
     const load = () =>
-      fetch('/api/tunnel')
-        .then((r) => r.json())
+      requestJson('/api/tunnel')
         .then(setTunnel)
         .catch(() => {});
     load();
@@ -62,38 +56,34 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
   }, [status.reachable, status.connected]);
 
   useEffect(() => {
-    if (tab === 'live') {
-      fetch('/api/channels')
-        .then((r) => r.json())
+    const load = () => {
+      requestJson(tab === 'live' ? '/api/channels' : '/api/sandbox')
         .then((d) => {
-          setChannels(d.channels ?? []);
-          setProblem(d.error ?? null);
+          if (tab === 'live') setChannels(d.channels ?? []);
+          else setSandbox(d.error ? null : d);
+          setProblem(d.error ? publicError(d.error, errors.load) : null);
         })
-        .catch((e) => setProblem(String(e)));
-    } else {
-      const load = () =>
-        fetch('/api/sandbox')
-          .then((r) => r.json())
-          .then((d) => {
-            setSandbox(d.error ? null : d);
-            setProblem(d.error ?? null);
-          })
-          .catch((e) => setProblem(String(e)));
-      load();
-      const t = setInterval(load, 5000);
-      return () => clearInterval(t);
-    }
+        .catch((e) => setProblem(publicError(e, errors.load)));
+    };
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
   }, [tab]);
 
   const run = async (fn: () => Promise<unknown>, done: string) => {
     setBusy(true);
+    setConnectionError(null);
     try {
-      await fn();
+      const result = await fn() as { tunnel?: Tunnel | null };
+      if ('tunnel' in result) setTunnel(result.tunnel ?? null);
       toast.success(done);
       onChange();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      const message = publicError(err, errors.connect);
+      setConnectionError(message);
+      toast.error(message);
     } finally {
+      onChange();
       setBusy(false);
     }
   };
@@ -113,7 +103,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
       const deadline = Date.now() + 15 * 60 * 1000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000));
-        const list = (await fetch('/api/channels').then((r) => r.json())) as {
+        const list = (await requestJson('/api/channels')) as {
           channels?: Channel[];
         };
         setChannels(list.channels ?? []);
@@ -127,7 +117,7 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
       }
       toast.error('Gave up waiting. Pick the number from the list once it appears.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(publicError(err, errors.connect));
     } finally {
       setConnecting(false);
     }
@@ -163,10 +153,10 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                 </p>
                 <div className="flex gap-2">
                   <Button
-                    disabled={busy}
-                    onClick={() => run(() => post('/api/sandbox/select'), 'Sandbox points here')}
+                    disabled={busy || tunnel?.starting || (status.mode === 'sandbox' && status.sandboxSessionId === sandbox.session.id && (status.reachable ? sandbox.pointsHere : tunnel?.running))}
+                    onClick={() => run(() => post('/api/sandbox/select'), 'Receiving messages here')}
                   >
-                    Receive messages here
+                    {busy || tunnel?.starting ? 'Connecting…' : 'Receive messages here'}
                   </Button>
                   <Button
                     variant="outline"
@@ -179,11 +169,15 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
               </>
             ) : sandbox?.bind ? (
               <div className="space-y-2 text-sm">
-                <p>Send this code from WhatsApp to the sandbox number, then wait a moment.</p>
+                <p>Send this code to <span className="font-mono">{sandbox.bind.phoneNumber}</span> on WhatsApp.</p>
                 <p className="font-mono text-2xl">{sandbox.bind.code}</p>
-                {sandbox.bind.phoneNumber ? (
-                  <p className="text-muted-foreground">to {sandbox.bind.phoneNumber}</p>
-                ) : null}
+                <Button
+                  nativeButton={false}
+                  render={<a href={sandbox.bind.whatsappUrl} target="_blank" rel="noopener noreferrer" />}
+                >
+                  Open WhatsApp
+                </Button>
+                <p className="text-muted-foreground">The code is filled in. Press Send in WhatsApp, then come back here.</p>
               </div>
             ) : problem ? (
               <p className="text-destructive text-sm">{problem}</p>
@@ -207,15 +201,15 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
                     </span>
                     <Button
                       size="sm"
-                      disabled={busy}
+                      disabled={busy || tunnel?.starting || (status.mode === 'live' && status.channelId === c.publicId && (status.reachable ? c.webhookUrl === status.webhookUrl : tunnel?.running))}
                       onClick={() =>
                         run(
                           () => post('/api/channels/select', { channelId: c.publicId }),
-                          'Webhook set on this number',
+                          'Receiving messages here',
                         )
                       }
                     >
-                      Use this number
+                      {busy || tunnel?.starting ? 'Connecting…' : 'Receive messages here'}
                     </Button>
                   </li>
                 ))}
@@ -231,48 +225,25 @@ export function ConnectCard({ status, onChange }: { status: Status; onChange: ()
           </TabsContent>
         </Tabs>
 
-        {status.reachable ? (
-          <p className="text-muted-foreground text-xs break-all">
-            Webhook URL: <span className="font-mono">{status.webhookUrl}</span>
-          </p>
-        ) : status.connected ? (
-          <div className="space-y-2 rounded-md border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="space-y-0.5">
-                <p className="text-sm font-medium">Run the agent on this computer</p>
-                <p className="text-muted-foreground text-xs">
-                  {tunnel?.running
-                    ? `Messages to ${tunnel.target} are arriving here.`
-                    : 'Carries messages to this app while it runs on your machine.'}
-                </p>
-              </div>
-              {tunnel?.running ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    run(() => del('/api/tunnel'), 'Stopped')
-                  }
-                >
-                  <Square className="size-3.5" />
-                  Stop
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => run(() => post('/api/tunnel'), 'Running on this computer')}
-                >
-                  <Play className="size-3.5" />
-                  Run
-                </Button>
-              )}
-            </div>
-            {tunnel?.address ? (
-              <p className="text-muted-foreground font-mono text-xs break-all">{tunnel.address}</p>
-            ) : null}
-            {tunnel?.error ? <p className="text-destructive text-xs">{tunnel.error}</p> : null}
+        {tunnel?.starting && tunnel.detail ? (
+          <p role="status" className="text-muted-foreground text-sm">{tunnel.detail}</p>
+        ) : null}
+        {connectionError || tunnel?.error ? (
+          <p role="alert" className="text-destructive text-sm">{publicError(connectionError ?? tunnel?.error, errors.connect)}</p>
+        ) : null}
+        {!status.reachable && tunnel?.running ? (
+          <div className="flex items-center justify-between gap-2">
+            <p role="status" className="text-sm">Receiving messages here</p>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => run(async () => {
+              const result = await del('/api/tunnel');
+              setTunnel(result);
+              return result;
+            }, 'Stopped receiving messages')}>
+              Stop receiving
+            </Button>
           </div>
+        ) : status.reachable && sandbox?.pointsHere && tab === 'sandbox' ? (
+          <p role="status" className="text-sm">Receiving messages here</p>
         ) : null}
       </CardContent>
     </Card>

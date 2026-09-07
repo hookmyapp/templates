@@ -1,10 +1,20 @@
 node_modules
 .next
-.env
-.env.local
-.env*.local
+.env*
+!.env.example
 .vercel
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
 .pglite
+
+# Local coding-agent instructions and working notes
+AGENTS.md
+CLAUDE.md
+.agents/
+.claude/
+.codex/
+docs/plans/
+docs/superpowers/
+HANDOFF.md
+*.log

@@ -1,5 +1,8 @@
 "use client";
 
+import { requestJson } from '@/lib/api-client';
+import { errors, publicError } from '@/lib/errors';
+
 import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown, KeyRound } from "lucide-react";
 import { toast } from "sonner";
@@ -39,15 +42,30 @@ export function InstructionsView({
   const [model, setModel] = useState(status.model);
   const [temperature, setTemperature] = useState(status.temperature);
   const [busy, setBusy] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [models, setModels] = useState<Model[] | null>(null);
+  const [freeOnly, setFreeOnly] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/models")
-      .then((r) => r.json())
-      .then((d) => setModels(d.connected ? (d.models ?? []) : null))
-      .catch(() => setModels(null));
+    let active = true;
+    const load = () => requestJson("/api/models")
+      .then((d) => {
+        if (!active) return;
+        setModelError(null);
+        setModels(d.connected ? (d.models ?? []) : null);
+        setFreeOnly(d.freeOnly ?? false);
+      })
+      .catch((error) => { if (active) setModelError(publicError(error, errors.load)); });
+    load();
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", load);
+    };
   }, []);
+
+  const modelUnavailable = Boolean(models && !models.some((m) => m.id === model));
 
   const dirty =
     prompt !== status.systemPrompt ||
@@ -57,16 +75,15 @@ export function InstructionsView({
   const save = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/settings", {
+      await requestJson("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ systemPrompt: prompt, model, temperature }),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      }, errors.save);
       toast.success("Saved. The next message uses it.");
       onChange();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(publicError(err, errors.save));
     } finally {
       setBusy(false);
     }
@@ -81,7 +98,7 @@ export function InstructionsView({
             The system prompt every incoming message is answered with.
           </p>
         </div>
-        <Button onClick={save} disabled={busy || !dirty}>
+        <Button onClick={save} disabled={busy || !dirty || modelUnavailable}>
           Save changes
         </Button>
       </div>
@@ -99,6 +116,7 @@ export function InstructionsView({
             <CardTitle className="text-base">Model configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {modelError ? <p role="alert" className="text-destructive text-sm">{modelError}</p> : null}
             <div className="space-y-2">
               <Label>Model</Label>
               {models ? (
@@ -111,7 +129,7 @@ export function InstructionsView({
                       />
                     }
                   >
-                    <span className="truncate">{model}</span>
+                    <span className="truncate">{modelUnavailable ? "Choose a model" : model}</span>
                     <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
                   </PopoverTrigger>
                   <PopoverContent className="w-[300px] p-0" align="start">
@@ -144,15 +162,36 @@ export function InstructionsView({
                   </PopoverContent>
                 </Popover>
               ) : (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={onSettings}
-                >
-                  <KeyRound className="size-4" />
-                  Add your OpenRouter key
-                </Button>
+                <div className="space-y-1">
+                  <form action="/api/openrouter" method="post">
+                    <Button type="submit" variant="outline" className="w-full">
+                      <KeyRound className="size-4" />
+                      Connect OpenRouter
+                    </Button>
+                  </form>
+                  <Button variant="link" className="w-full" onClick={onSettings}>
+                    Enter Key Manually
+                  </Button>
+                </div>
               )}
+              {models ? (
+                <div className="space-y-2">
+                  {freeOnly ? (
+                    <p className="text-muted-foreground text-sm">
+                      Free models are available. Add credits to unlock paid models.
+                      {modelUnavailable ? " Choose a free model and save your changes to use it." : ""}
+                    </p>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    nativeButton={false}
+                    render={<a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener noreferrer" />}
+                  >
+                    Add Credits
+                  </Button>
+                </div>
+              ) : null}
             </div>
             {models ? (
               <div className="space-y-3">
