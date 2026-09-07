@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "hookmyapp": "hookmyapp",
-    "tunnel": "hookmyapp sandbox listen --port ${PORT:-3000} --path /api/webhook/whatsapp",
+    "tunnel": "hookmyapp sandbox listen --path /api/webhook/whatsapp",
     "skills": "npx -y skills add hookmyapp/agent-skills --all --global",
-    "connect": "node scripts/connect.mjs"
+    "connect": "node scripts/connect.mjs",
+    "test": "node --test \"scripts/*.test.mjs\"",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -39,5 +42,8 @@
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

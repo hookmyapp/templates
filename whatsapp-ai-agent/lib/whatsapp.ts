@@ -5,8 +5,8 @@ export function verifySignature(raw: string, header: string | null, secret: stri
   if (!header) return false;
   const expected = createHmac('sha256', secret).update(raw, 'utf8').digest('hex');
   const got = header.replace(/^sha256=/, '');
-  if (got.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+  if (!/^[a-f0-9]{64}$/i.test(got)) return false;
+  return timingSafeEqual(Buffer.from(got, 'hex'), Buffer.from(expected, 'hex'));
 }
 
 export type Inbound = { from: string; text: string };

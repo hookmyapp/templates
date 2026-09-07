@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { ChevronDown, MessageSquare, Play, Search, Settings2, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -39,8 +40,6 @@ export function AppSidebar({
   mode,
   query,
   onQuery,
-  onSelect,
-  onView,
 }: {
   contacts: Contact[];
   active: string | null;
@@ -49,8 +48,6 @@ export function AppSidebar({
   mode: 'sandbox' | 'live';
   query: string;
   onQuery: (q: string) => void;
-  onSelect: (id: string) => void;
-  onView: (v: View) => void;
 }) {
   const [buildOpen, setBuildOpen] = useState(true);
 
@@ -87,7 +84,7 @@ export function AppSidebar({
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         isActive={view === 'instructions'}
-                        onClick={() => onView('instructions')}
+                        render={<Link href="/" />}
                       >
                         <span>Instructions</span>
                       </SidebarMenuSubButton>
@@ -99,7 +96,7 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={view === 'playground'}
-                  onClick={() => onView('playground')}
+                  render={<Link href="/playground" />}
                   tooltip="Playground"
                 >
                   <Play className="size-4" />
@@ -131,7 +128,7 @@ export function AppSidebar({
                 <SidebarMenuItem key={c.contact_wa_id}>
                   <SidebarMenuButton
                     isActive={view === 'chat' && active === c.contact_wa_id}
-                    onClick={() => onSelect(c.contact_wa_id)}
+                    render={<Link href={`/conversations/${encodeURIComponent(c.contact_wa_id)}`} />}
                     tooltip={c.contact_wa_id}
                     className="h-auto items-center py-2"
                   >
@@ -160,7 +157,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={view === 'settings'}
-              onClick={() => onView('settings')}
+              render={<Link href="/settings" />}
               tooltip="Settings"
             >
               <Settings2 className="size-4" />

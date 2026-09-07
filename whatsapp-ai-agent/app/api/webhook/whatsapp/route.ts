@@ -1,3 +1,4 @@
+import { errors, publicError, reportError } from '@/lib/errors';
 import { after, NextRequest } from 'next/server';
 import { addMessage, getSettings, history } from '@/lib/db';
 import { sendText } from '@/lib/hookmyapp';
@@ -12,7 +13,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const settings = await getSettings();
-  if (q.get('hub.mode') === 'subscribe' && q.get('hub.verify_token') === settings.verify_token) {
+  if (settings.verify_token && q.get('hub.mode') === 'subscribe' && q.get('hub.verify_token') === settings.verify_token) {
     return new Response(q.get('hub.challenge') ?? '', { status: 200 });
   }
   return new Response('Forbidden', { status: 403 });
@@ -57,13 +58,14 @@ export async function POST(req: NextRequest) {
         );
         await addMessage({ contact: msg.from, direction: 'out', body: answer });
       } catch (err) {
+        reportError('whatsapp-reply', err);
         // Nothing surfaces a throw after the response, so the failure is
         // stored and shown in the chat view instead of vanishing.
         await addMessage({
           contact: msg.from,
           direction: 'out',
           body: '',
-          error: err instanceof Error ? err.message : String(err),
+          error: publicError(err, errors.reply),
         });
       }
     }

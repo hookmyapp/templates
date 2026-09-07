@@ -1,3 +1,4 @@
+import { errors, publicError, reportError } from '@/lib/errors';
 import { getSettings } from '@/lib/db';
 import { reply } from '@/lib/llm';
 
@@ -5,12 +6,12 @@ export const dynamic = 'force-dynamic';
 
 /** Answers with the live prompt without touching WhatsApp or the message log. */
 export async function POST(req: Request) {
-  const { history, message } = (await req.json()) as {
-    history: { direction: 'in' | 'out'; body: string }[];
-    message: string;
-  };
-  const s = await getSettings();
   try {
+    const { history, message } = (await req.json()) as {
+      history: { direction: 'in' | 'out'; body: string }[];
+      message: string;
+    };
+    const s = await getSettings();
     const text = await reply(
       s.system_prompt,
       s.model,
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
     );
     return Response.json({ reply: text });
   } catch (err) {
-    return Response.json({ error: String(err) }, { status: 502 });
+    reportError('playground', err);
+    return Response.json({ error: publicError(err, errors.reply) }, { status: 502 });
   }
 }

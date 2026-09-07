@@ -1,3 +1,4 @@
+import { errors, reportError } from './errors';
 import type { Message } from './db';
 
 const URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -12,11 +13,11 @@ export async function reply(
   temperature = 0.7,
 ): Promise<string> {
   const key = apiKey ?? process.env.OPENROUTER_API_KEY;
-  if (!key) throw new Error('Add your OpenRouter key in Settings');
+  if (!key) throw new Error(errors.openrouterKey);
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...past.map((m) => ({
+    ...past.filter((m) => !m.error && m.body).map((m) => ({
       role: m.direction === 'in' ? 'user' : 'assistant',
       content: m.body,
     })),
@@ -25,13 +26,21 @@ export async function reply(
 
   const res = await fetch(URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(60_000),
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, temperature }),
+    // ponytail: cap short replies at 1,024 tokens; expose a setting if longer replies are needed.
+    body: JSON.stringify({ model, messages, temperature, max_completion_tokens: 1024 }),
   });
-  if (!res.ok) throw new Error(`OpenRouter failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    reportError('openrouter', { status: res.status });
+    const message = res.status === 401 ? errors.openrouterAuth
+      : res.status === 402 ? errors.openrouterCredits
+      : res.status === 429 ? errors.openrouterBusy : errors.openrouterReply;
+    throw new Error(message);
+  }
 
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error('OpenRouter returned an empty reply');
+  if (!text) throw new Error(errors.openrouterReply);
   return text;
 }

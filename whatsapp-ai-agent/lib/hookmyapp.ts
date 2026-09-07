@@ -1,3 +1,4 @@
+import { errors, reportError } from './errors';
 import { headers } from 'next/headers';
 import { getSettings } from './db';
 
@@ -7,7 +8,7 @@ const API = process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com';
 async function authHeaders(): Promise<Record<string, string>> {
   const s = await getSettings();
   const key = s.hookmyapp_api_key ?? process.env.HOOKMYAPP_API_KEY;
-  if (!key) throw new Error('Add your HookMyApp API key in Settings');
+  if (!key) throw new Error(errors.hookKey);
   const h: Record<string, string> = {
     Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
@@ -18,10 +19,16 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API}${path}`, { ...init, headers: await authHeaders(), cache: 'no-store' });
+  const res = await fetch(`${API}${path}`, { ...init, headers: await authHeaders(), cache: 'no-store', signal: init?.signal ?? AbortSignal.timeout(15_000) });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`HookMyApp ${init.method ?? 'GET'} ${path} failed (${res.status}): ${text}`);
+    const detail = (() => { try { return JSON.parse(text); } catch { return {}; } })();
+    reportError('hookmyapp', { status: res.status, code: detail?.code, requestId: detail?.requestId });
+    const message = res.status === 401 ? errors.hookAuth
+      : res.status === 403 ? errors.hookAccess
+      : res.status === 404 ? errors.hookMissing
+      : res.status === 429 ? errors.hookBusy : errors.hookUnavailable;
+    throw new Error(message);
   }
   return (text ? JSON.parse(text) : null) as T;
 }
@@ -48,15 +55,18 @@ export async function selfUrl(): Promise<string> {
 }
 
 function isLocalHost(host: string): boolean {
-  const name = host.split(':')[0];
-  return name === 'localhost' || name === '127.0.0.1' || name === '[::1]' || name.endsWith('.local');
+  const name = new URL(`http://${host}`).hostname;
+  return name === 'localhost' || name.endsWith('.localhost') || name.endsWith('.local')
+    || name === '[::1]' || /^\[(?:f[cd]|fe[89ab])/i.test(name)
+    || /^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(name)
+    || name === '0.0.0.0';
 }
 
 export async function webhookUrl(): Promise<string> {
   return `${await selfUrl()}/api/webhook/whatsapp`;
 }
 
-/** True while this app is only reachable from the machine it runs on. */
+/** Public URLs can receive directly; local and private-network hosts need a receiver. */
 export async function isReachableFromOutside(): Promise<boolean> {
   try {
     return !isLocalHost(new URL(await selfUrl()).host);
@@ -65,21 +75,29 @@ export async function isReachableFromOutside(): Promise<boolean> {
   }
 }
 
-export const NO_PUBLIC_URL =
-  'This app is only reachable from your own machine, so HookMyApp cannot deliver messages to it. Expose it with a tunnel and open the app on that address.';
-
 export type Channel = {
   publicId: string;
   channelType: string;
   displayName?: string;
   phoneNumber?: string;
   status?: string;
+  webhookUrl?: string | null;
 };
 
 export async function listChannels(): Promise<Channel[]> {
-  const dto = await call<{ channels?: Channel[] } | Channel[]>('/meta/channels');
-  const all = Array.isArray(dto) ? dto : (dto.channels ?? []);
-  return all.filter((c) => c.channelType === 'whatsapp');
+  // GET /meta/channels exposes `id` and `type`, unlike the env envelope's channelType.
+  const channels = await call<{
+    id: string; type: string; whatsappVerifiedName?: string;
+    whatsappWabaName?: string; whatsappDisplayPhoneNumber?: string;
+    webhookUrl?: string | null;
+  }[]>('/meta/channels');
+  return channels.filter((c) => c.type === 'whatsapp').map((c) => ({
+    publicId: c.id,
+    channelType: c.type,
+    displayName: c.whatsappVerifiedName ?? c.whatsappWabaName,
+    phoneNumber: c.whatsappDisplayPhoneNumber,
+    webhookUrl: c.webhookUrl ?? null,
+  }));
 }
 
 export type ChannelCreds = {
@@ -96,6 +114,9 @@ export async function channelCredentials(channelId: string): Promise<ChannelCred
     `/meta/channels/${channelId}/env`,
   );
   const v = { ...(dto.defaults ?? {}), ...dto.values };
+  if (![v.META_GRAPH_API_URL ?? v.WHATSAPP_API_URL, v.WHATSAPP_PHONE_NUMBER_ID, v.WHATSAPP_ACCESS_TOKEN, v.WEBHOOK_HMAC_SECRET, v.VERIFY_TOKEN].every(Boolean)) {
+    throw new Error(errors.incomplete);
+  }
   return {
     apiBase: v.META_GRAPH_API_URL ?? v.WHATSAPP_API_URL,
     phoneNumberId: v.WHATSAPP_PHONE_NUMBER_ID,
@@ -111,7 +132,7 @@ export async function getWebhookConfig(channelId: string) {
 
 export async function setWebhook(channelId: string, url: string, verifyToken: string) {
   return call(`/webhook-config/${channelId}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify({ webhookUrl: url, verifyToken }),
   });
 }
@@ -131,6 +152,7 @@ export type SandboxSession = {
   verifyToken: string;
   accessToken: string;
   whatsappPhone: string;
+  sandboxPhoneNumberId: string;
   whatsappApiVersion: string;
   webhookUrl?: string | null;
 };
@@ -147,13 +169,28 @@ export async function activeSandboxSession(): Promise<SandboxSession | null> {
 }
 
 export async function bindCode() {
-  return call<{ code: string; phoneNumber?: string; expiresAt?: string }>('/sandbox/bind-code');
+  const bind = await call<{ code: string; issuedAt: string }>('/sandbox/bind-code');
+  // The bind-code API does not return a destination. Match the CLI's production sandbox.
+  const configuredPhone = process.env.HOOKMYAPP_SANDBOX_PHONE_NUMBER
+    ?? (new URL(API).hostname === 'api.hookmyapp.com' ? '17372370900' : '');
+  const phone = configuredPhone.replace(/[\s()+-]/g, '');
+  if (!/^[1-9]\d{6,14}$/.test(phone)) {
+    throw new Error('Set HOOKMYAPP_SANDBOX_PHONE_NUMBER to the sandbox number for this API environment.');
+  }
+  return {
+    ...bind,
+    phoneNumber: `+${phone}`,
+    whatsappUrl: `https://wa.me/${phone}?text=${encodeURIComponent(bind.code)}`,
+  };
 }
 
 export function sandboxCredentials(s: SandboxSession): ChannelCreds {
+  if (![s.sandboxPhoneNumberId, s.whatsappApiVersion, s.accessToken, s.hmacSecret, s.verifyToken].every(Boolean)) {
+    throw new Error(errors.incomplete);
+  }
   return {
     apiBase: `${SANDBOX_BASE.replace(/\/$/, '')}/${s.whatsappApiVersion}`,
-    phoneNumberId: s.whatsappPhone,
+    phoneNumberId: s.sandboxPhoneNumberId,
     token: s.accessToken,
     hmacSecret: s.hmacSecret,
     verifyToken: s.verifyToken,
@@ -183,6 +220,7 @@ export async function sendText(
       Authorization: `Bearer ${creds.token}`,
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(30_000),
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       to,
@@ -190,5 +228,9 @@ export async function sendText(
       text: { body },
     }),
   });
-  if (!res.ok) throw new Error(`Send failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    const failure = await res.json().catch(() => null) as { code?: unknown; requestId?: unknown } | null;
+    reportError('whatsapp', { status: res.status, code: failure?.code, requestId: failure?.requestId });
+    throw new Error(errors.send);
+  }
 }
