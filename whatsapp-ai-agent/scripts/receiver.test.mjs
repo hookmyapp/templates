@@ -12,13 +12,12 @@ const source = ts.transpileModule(readFileSync(new URL('../lib/tunnel.ts', impor
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
 }).outputText;
 
-test('receiver isolates app credentials, waits for signed delivery, and handles failure', async () => {
+test('receiver hands the app credentials to the CLI, waits for signed delivery, and handles failure', async () => {
   const settings = {
     mode: 'sandbox', sandbox_session_id: 'ssn_12345678', hookmyapp_api_key: 'app-secret',
     hookmyapp_workspace_id: 'ws_12345678', hmac_secret: 'hmac-secret', verify_token: 'verify-secret',
   };
-  let child, spawned, fail = false, legacy = false, probeCount = 0;
-  const files = new Map();
+  let child, spawned, fail = false, probeCount = 0;
   const diagnostics = [];
   let tick;
   const context = {
@@ -30,12 +29,7 @@ test('receiver isolates app credentials, waits for signed delivery, and handles 
       if (name === './errors') return loadErrors(context.console);
       if (name === './db') return { getSettings: async () => settings };
       if (name === './hookmyapp') return { selfUrl: async () => 'http://localhost:3456' };
-      if (name === 'node:fs') return {
-        existsSync: () => legacy,
-        mkdtempSync: () => '/private/receiver',
-        writeFileSync: (path, body, options) => { assert.equal(options.mode, 0o600); files.set(path, JSON.parse(body)); },
-        rmSync: () => files.clear(),
-      };
+      if (name === 'node:fs' || name === 'node:os') throw new Error(`the receiver must not use ${name}`);
       if (name === 'node:module') return { createRequire: () => Object.assign(() => ({ bin: { hookmyapp: 'cli.js' } }), { resolve: () => '/cli/package.json' }) };
       if (name === 'node:child_process') return { spawnSync: (command, args, options) => {
         assert.equal(command, 'taskkill.exe');
@@ -80,16 +74,18 @@ test('receiver isolates app credentials, waits for signed delivery, and handles 
   assert.equal(ready.running, true);
   assert.equal(ready.starting, false);
   assert.ok(probeCount >= 2);
-  assert.equal(spawned.options.env.HOOKMYAPP_CONFIG_DIR, '/private/receiver');
-  assert.equal(context.process.env.HOOKMYAPP_CONFIG_DIR, '/unrelated-cli');
-  assert.equal(files.get('/private/receiver/credentials.json').accessToken, 'app-secret');
-  assert.equal(files.get('/private/receiver/config.json').activeWorkspaceId, settings.hookmyapp_workspace_id);
+  // The app's account reaches the CLI through its environment only.
+  assert.equal(spawned.options.env.HOOKMYAPP_API_KEY, 'app-secret');
+  assert.equal(spawned.options.env.HOOKMYAPP_WORKSPACE_ID, settings.hookmyapp_workspace_id);
+  // The user's own CLI configuration is passed through, not redirected.
+  assert.equal(spawned.options.env.HOOKMYAPP_CONFIG_DIR, '/unrelated-cli');
+  assert.equal(context.process.env.HOOKMYAPP_API_KEY, undefined, 'never leak the key into the app process');
   assert.deepEqual(Array.from(spawned.args.slice(1)), ['sandbox', 'listen', '--session', 'ssn_12345678', '--port', '3456', '--path', '/api/webhook/whatsapp']);
   assert.ok(!spawned.args.includes('app-secret'));
-  await stop(); assert.equal(status().running, false); assert.equal(files.size, 0);
+  await stop(); assert.equal(status().running, false);
   fail = true;
   await assert.rejects(start(), /could not sign you in/);
-  assert.equal(status().running, false); assert.equal(files.size, 0);
+  assert.equal(status().running, false);
   fail = false; settings.mode = 'live'; settings.channel_id = 'ch_12345678';
   await start();
   assert.deepEqual(Array.from(spawned.args.slice(1, 4)), ['channels', 'listen', 'ch_12345678']);
@@ -113,10 +109,6 @@ test('receiver isolates app credentials, waits for signed delivery, and handles 
   assert.equal(spawned.options.windowsHide, true);
   await stop();
   assert.equal(status().running, false);
-  assert.equal(files.size, 0);
-  legacy = true;
-  await assert.rejects(start(), /installation needs an update/);
-  assert.equal(files.size, 0);
   let finish;
   const selecting = context.exports.receiveHere(() => new Promise(resolve => { finish = resolve; }));
   await assert.rejects(context.exports.receiveHere(async () => true), /Already connecting/);
