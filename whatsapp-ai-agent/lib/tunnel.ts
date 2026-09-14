@@ -111,15 +111,16 @@ export async function start(): Promise<TunnelState> {
   const selection = `${workspace}:${channel ?? session}:${port}`;
   if (store.__tunnel?.running && store.__tunnel.selection === selection) return status();
   await stop();
-  // The CLI reads the key and workspace from its environment (0.14.23+), which
-  // take precedence over any login stored on this machine and leave it untouched.
+  // The CLI reads the key from its environment (0.14.23+), which takes
+  // precedence over any login stored on this machine. The workspace goes in as
+  // --workspace: the CLI has no workspace variable and would otherwise fall
+  // back to the stored login's workspace.
   const args = channel ? ['channels', 'listen', channel] : ['sandbox', 'listen', '--session', session!];
-  const child = spawn(process.execPath, [cliEntry(), ...args, '--port', String(port), '--path', '/api/webhook/whatsapp'], {
+  const child = spawn(process.execPath, [cliEntry(), '--workspace', workspace, ...args, '--port', String(port), '--path', '/api/webhook/whatsapp'], {
     stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
     env: {
       ...process.env,
       HOOKMYAPP_API_KEY: key,
-      HOOKMYAPP_WORKSPACE_ID: workspace,
       HOOKMYAPP_API_URL: process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com',
       HOOKMYAPP_TELEMETRY: 'off',
     },

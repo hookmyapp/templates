@@ -74,13 +74,13 @@ test('receiver hands the app credentials to the CLI, waits for signed delivery, 
   assert.equal(ready.running, true);
   assert.equal(ready.starting, false);
   assert.ok(probeCount >= 2);
-  // The app's account reaches the CLI through its environment only.
+  // The key reaches the CLI through its environment, the workspace as a flag
+  // (the CLI has no workspace variable; a stored login's workspace would win).
   assert.equal(spawned.options.env.HOOKMYAPP_API_KEY, 'app-secret');
-  assert.equal(spawned.options.env.HOOKMYAPP_WORKSPACE_ID, settings.hookmyapp_workspace_id);
   // The user's own CLI configuration is passed through, not redirected.
   assert.equal(spawned.options.env.HOOKMYAPP_CONFIG_DIR, '/unrelated-cli');
   assert.equal(context.process.env.HOOKMYAPP_API_KEY, undefined, 'never leak the key into the app process');
-  assert.deepEqual(Array.from(spawned.args.slice(1)), ['sandbox', 'listen', '--session', 'ssn_12345678', '--port', '3456', '--path', '/api/webhook/whatsapp']);
+  assert.deepEqual(Array.from(spawned.args.slice(1)), ['--workspace', settings.hookmyapp_workspace_id, 'sandbox', 'listen', '--session', 'ssn_12345678', '--port', '3456', '--path', '/api/webhook/whatsapp']);
   assert.ok(!spawned.args.includes('app-secret'));
   await stop(); assert.equal(status().running, false);
   fail = true;
@@ -88,7 +88,7 @@ test('receiver hands the app credentials to the CLI, waits for signed delivery, 
   assert.equal(status().running, false);
   fail = false; settings.mode = 'live'; settings.channel_id = 'ch_12345678';
   await start();
-  assert.deepEqual(Array.from(spawned.args.slice(1, 4)), ['channels', 'listen', 'ch_12345678']);
+  assert.deepEqual(Array.from(spawned.args.slice(1, 6)), ['--workspace', settings.hookmyapp_workspace_id, 'channels', 'listen', 'ch_12345678']);
   await stop();
   let time = 0;
   context.Date = { now: () => time };
