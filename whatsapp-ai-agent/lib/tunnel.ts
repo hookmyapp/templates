@@ -1,9 +1,7 @@
 import { errors, publicError, reportError } from './errors';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createHmac, randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { getSettings } from './db';
@@ -18,7 +16,7 @@ export type TunnelState = {
   error: string | null;
 };
 
-type Tunnel = { child: ChildProcess; configDir: string; selection: string; closed?: boolean } & TunnelState;
+type Tunnel = { child: ChildProcess; selection: string; closed?: boolean } & TunnelState;
 const store = globalThis as unknown as { __tunnel?: Tunnel; __tunnelExitHooked?: boolean; __receiverChanging?: boolean; __receiverError?: string };
 
 if (!store.__tunnelExitHooked) {
@@ -74,7 +72,6 @@ export async function stop(): Promise<void> {
       }
     });
   }
-  if (t.configDir) rmSync(t.configDir, { recursive: true, force: true });
   if (store.__tunnel === t) store.__tunnel = undefined;
 }
 
@@ -113,30 +110,23 @@ export async function start(): Promise<TunnelState> {
   const port = Number(localUrl.port || (localUrl.protocol === 'https:' ? 443 : 80));
   const selection = `${workspace}:${channel ?? session}:${port}`;
   if (store.__tunnel?.running && store.__tunnel.selection === selection) return status();
-  // ponytail: this CLI migrates legacy credentials even with a config override.
-  // Refuse that case until the CLI supports migration-free embedded auth.
-  if (existsSync(path.join(homedir(), '.hookmyapp', 'credentials.json'))) {
-    throw new Error(errors.installation);
-  }
   await stop();
-  const configDir = mkdtempSync(path.join(tmpdir(), 'whatsapp-agent-'));
-  let child: ChildProcess;
-  try {
-    writeFileSync(path.join(configDir, 'credentials.json'), JSON.stringify({
-      kind: 'agent', accessToken: key, refreshToken: '', expiresAt: 0,
-    }), { mode: 0o600 });
-    writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ activeWorkspaceId: workspace }), { mode: 0o600 });
-    const args = channel ? ['channels', 'listen', channel] : ['sandbox', 'listen', '--session', session!];
-    child = spawn(process.execPath, [cliEntry(), ...args, '--port', String(port), '--path', '/api/webhook/whatsapp'], {
-      stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-      env: { ...process.env, HOOKMYAPP_CONFIG_DIR: configDir, HOOKMYAPP_API_URL: process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com', HOOKMYAPP_TELEMETRY: 'off' },
-    });
-  } catch (err) {
-    rmSync(configDir, { recursive: true, force: true });
-    throw err;
-  }
+  // The CLI reads the key from its environment (0.14.23+), which takes
+  // precedence over any login stored on this machine. The workspace goes in as
+  // --workspace: the CLI has no workspace variable and would otherwise fall
+  // back to the stored login's workspace.
+  const args = channel ? ['channels', 'listen', channel] : ['sandbox', 'listen', '--session', session!];
+  const child = spawn(process.execPath, [cliEntry(), '--workspace', workspace, ...args, '--port', String(port), '--path', '/api/webhook/whatsapp'], {
+    stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+    env: {
+      ...process.env,
+      HOOKMYAPP_API_KEY: key,
+      HOOKMYAPP_API_URL: process.env.HOOKMYAPP_API_URL ?? 'https://api.hookmyapp.com',
+      HOOKMYAPP_TELEMETRY: 'off',
+    },
+  });
   const tunnel: Tunnel = {
-    child, configDir, selection, running: false, starting: true,
+    child, selection, running: false, starting: true,
     detail: 'Starting the message receiver…',
     target: channel ? 'your number' : 'the sandbox number', address: null, error: null,
   };
@@ -173,7 +163,6 @@ export async function start(): Promise<TunnelState> {
     tunnel.starting = false;
     tunnel.running = false;
     tunnel.error ??= errors.stopped;
-    rmSync(configDir, { recursive: true, force: true });
   });
 
   // The public tunnel is protected by Cloudflare Access: only HookMyApp's

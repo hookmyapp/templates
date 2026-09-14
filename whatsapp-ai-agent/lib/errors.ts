@@ -24,7 +24,6 @@ export const errors = {
   sandbox: 'Send the connection code to the sandbox number from WhatsApp first.',
   incomplete: 'This connection is incomplete. Connect your number again.',
   stopped: 'Receiving messages stopped. Press Receive messages here to reconnect.',
-  installation: 'This installation needs an update before it can receive messages. See the setup guide.',
 } as const;
 
 const allowed = new Set<string>(Object.values(errors));
